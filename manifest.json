@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "TalkingPoints Sidecar",
+  "version": "0.1.0",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "TalkingPoints"
+  },
+  "sidebar_action": {
+    "default_panel": "sidebar.html",
+    "default_icon": { "16": "icons/16.png" }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [{
+    "resources": ["sidebar.html","sidebar.bundle.js"],
+    "matches": ["<all_urls>"]
+  }]
+}
