@@ -1,0 +1,52 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                                ║
+║         ✅ GRADIENT HIGHLIGHTS SYSTEM UPDATED                  ║
+║                                                                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+NEW HIGHLIGHT SYSTEM:
+=====================
+
+✅ Gradient backgrounds (fade from color to transparent)
+✅ HTML class toggle (tl-hl-on) controls all highlights
+✅ Cleaner CSS with :not() selector for off state
+✅ Individual toggles control visibility per type
+
+CLASS MAPPING:
+==============
+AI-like      → .tl-hl-yellow (yellow gradient)
+Polarization → .tl-hl-green  (green gradient)
+Bias         → .tl-hl-red    (red gradient)
+
+HOW IT WORKS:
+=============
+
+1. Highlights are applied with classes (tl-hl-yellow, etc.)
+2. <html> gets "tl-hl-on" class when highlights are active
+3. CSS shows gradients only when .tl-hl-on is present
+4. Toggles show/hide individual highlight types
+5. When all toggles off, "tl-hl-on" is removed
+
+FILES UPDATED:
+==============
+
+✅ src/lib/highlight.js
+   • New gradient CSS with html class toggle
+   • enableHighlights() / disableHighlights() functions
+   • Updated class names (tl-hl-yellow, tl-hl-green, tl-hl-red)
+
+✅ src/content/panel.js
+   • Toggles now control individual highlight visibility
+   • updateHighlightState() manages tl-hl-on class
+   • Respects toggle states when scanning
+
+═══════════════════════════════════════════════════════════════
+
+⚠️  RELOAD EXTENSION TO SEE CHANGES
+   chrome://extensions/ → Find TruLens → Click ↻ RELOAD
+
+═══════════════════════════════════════════════════════════════
+
+The new gradient highlights look much more elegant and
+professional! They fade from color to transparent.
+

@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "TruLens — See Content Clearly (MVP)",
+  "version": "0.1.0",
+  "description": "In-page signals: AI-like, polarization, bias highlights + perspective links. Privacy-first, local heuristics.",
+  "icons": {
+    "16": "src/icons/icon16.png",
+    "48": "src/icons/icon48.png",
+    "128": "src/icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "TruLens MVP"
+  },
+  "permissions": ["storage", "activeTab", "scripting", "tabs", "downloads"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background/service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content.js"],
+      "css": ["src/content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [{
+    "resources": [
+      "src/styles/panel.css",
+      "src/icons/icon16.png",
+      "src/icons/icon48.png",
+      "src/icons/icon128.png",
+      "src/content/panel.js",
+      "src/lib/heuristics.js",
+      "src/lib/scoring.js",
+      "src/lib/highlight.js",
+      "src/lib/perspective.js"
+    ],
+    "matches": ["<all_urls>"]
+  }]
+}

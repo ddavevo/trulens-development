@@ -1,0 +1,176 @@
+/* TruLens Panel Styles */
+
+#panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100vh;
+  background: #111;
+  color: #fff;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, .3);
+  z-index: 2147483647;
+  overflow-y: auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px;
+  background: #1b1b1b;
+}
+
+header img {
+  display: inline-block;
+}
+
+header strong {
+  flex: 1;
+}
+
+#close {
+  margin-left: auto;
+  background: none;
+  color: #999;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+#close:hover {
+  color: #fff;
+}
+
+#scores {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+}
+
+.card {
+  background: #1f1f1f;
+  border-radius: 12px;
+  padding: 10px;
+  text-align: center;
+}
+
+.card > div:first-child {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.card > div:last-child {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+#legend {
+  padding: 0 12px 12px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.chip {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.chip.yellow {
+  background: #ffeb3b;
+}
+
+.chip.green {
+  background: #4caf50;
+}
+
+.chip.red {
+  background: #f44336;
+}
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 12px;
+  align-items: center;
+}
+
+#controls button {
+  background: #4b5cff;
+  border: none;
+  padding: 8px 12px;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#controls button:hover {
+  background: #5a6cff;
+}
+
+#controls label {
+  font-size: 13px;
+  opacity: .9;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+#controls input[type="checkbox"] {
+  cursor: pointer;
+}
+
+#perspective {
+  padding: 12px;
+  border-top: 1px solid #2a2a2a;
+}
+
+#perspective h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+#links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#links a {
+  display: block;
+  color: #9ecbff;
+  text-decoration: none;
+  margin: 6px 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#links a:hover {
+  text-decoration: underline;
+}
+
+footer {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  right: 12px;
+  opacity: .7;
+  font-size: 11px;
+  line-height: 1.4;
+}
+

@@ -1,0 +1,32 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                                ║
+║              ✅ MANIFEST.JSON UPDATED                          ║
+║                                                                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+CHANGES APPLIED:
+================
+
+✅ Permissions: Added "tabs" (kept "downloads" for export)
+✅ host_permissions: Changed to "<all_urls>" (cleaner)
+✅ content_scripts matches: Changed to "<all_urls>" (cleaner)
+✅ File paths: Kept correct paths (src/content/content.js, etc.)
+
+BEFORE:
+-------
+"permissions": ["activeTab", "scripting", "storage", "downloads"]
+"host_permissions": ["http://*/*", "https://*/*"]
+"matches": ["http://*/*", "https://*/*"]
+
+AFTER:
+------
+"permissions": ["storage", "activeTab", "scripting", "tabs", "downloads"]
+"host_permissions": ["<all_urls>"]
+"matches": ["<all_urls>"]
+
+═══════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANT: RELOAD EXTENSION AFTER THIS CHANGE
+   chrome://extensions/ → Find TruLens → Click ↻ RELOAD
+
+═══════════════════════════════════════════════════════════════

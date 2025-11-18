@@ -1,0 +1,56 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                                ║
+║       ✅ CACHED SCORE-BASED HIGHLIGHTS SYSTEM UPDATED          ║
+║                                                                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+NEW HIGHLIGHT SYSTEM:
+=====================
+
+✅ Cached scan results (TL_SCAN_CACHE)
+✅ Score-based thresholds (≥60 = red, ≥40 = yellow)
+✅ Non-destructive (doesn't destroy text nodes)
+✅ Persistent state (chrome.storage.local)
+✅ Single toggle for highlights on/off
+
+HOW IT WORKS:
+=============
+
+1. Scan analyzes text and calculates scores per chunk
+2. Elements with scores ≥40 are wrapped in spans
+3. Scores cached in TL_SCAN_CACHE [{el, score}...]
+4. Highlights applied based on thresholds:
+   • score ≥ 60 → red gradient
+   • score ≥ 40 → yellow gradient
+5. <html> class "tl-hl-on" controls visibility
+6. State persists across page reloads
+
+THRESHOLDS:
+===========
+Yellow (≥40%): Moderate signal strength
+Red (≥60%):   High signal strength
+
+FILES UPDATED:
+==============
+
+✅ src/lib/highlight.js
+   • Global state: TL_HL_ON, TL_SCAN_CACHE
+   • Functions: tlSetRootClass, tlClearHighlights, tlApplyHighlights, tlSetHighlights
+   • Score-based classifier (uses max of AI/Pol/Bias scores)
+   • Non-destructive highlighting (just adds classes)
+
+✅ src/content/panel.js
+   • Simplified to single "Highlights" toggle
+   • Uses tlSetHighlights() to control visibility
+   • Restores state from chrome.storage.local
+   • Updated legend to show thresholds
+
+═══════════════════════════════════════════════════════════════
+
+⚠️  RELOAD EXTENSION TO SEE CHANGES
+   chrome://extensions/ → Find TruLens → Click ↻ RELOAD
+
+═══════════════════════════════════════════════════════════════
+
+The new system is more efficient and preserves page structure!
+

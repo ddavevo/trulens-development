@@ -1,0 +1,38 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                                ║
+║            🔍 DEBUGGING: Panel Not Opening                     ║
+║                                                                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Let's find out EXACTLY what's happening:
+
+STEP 1: Open DevTools FIRST
+   1. Press F12 (or Cmd+Option+J on Mac)
+   2. Click "Console" tab
+   3. Keep it open
+
+STEP 2: Refresh the Page
+   1. Press F5 or Cmd+R
+   2. Watch the Console for messages
+
+STEP 3: Look for These Messages:
+   
+   You SHOULD see (immediately on page load):
+   ✓ Messages about content script loading
+   
+   If you DON'T see ANY messages, the extension isn't loading!
+
+STEP 4: Click the Blue Badge
+   1. Find blue "TruLens" button (bottom-right)
+   2. Click it
+   3. Watch Console for new messages
+
+WHAT TO REPORT:
+   • Do you see a blue badge at all? (YES/NO)
+   • What messages appear in Console?
+   • Any RED error messages?
+   • What is the URL of the page you're testing on?
+
+Copy ALL Console messages and send them to me!
+
+═══════════════════════════════════════════════════════════════
