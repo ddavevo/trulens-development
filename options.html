@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TruLens Options</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      margin: 0;
+      background: var(--bg-primary);
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="trulens-options">
+    <h1>TruLens Options</h1>
+
+    <div class="trulens-options-section">
+      <div class="trulens-options-section-title">Features</div>
+      
+      <div class="trulens-options-toggle">
+        <label for="smart-bubbles">Smart bubbles</label>
+        <input type="checkbox" id="smart-bubbles" checked>
+      </div>
+
+      <div class="trulens-options-toggle">
+        <label for="selection-toolbar">Selection toolbar</label>
+        <input type="checkbox" id="selection-toolbar" checked>
+      </div>
+
+      <div class="trulens-options-toggle">
+        <label for="highlights">Highlights</label>
+        <input type="checkbox" id="highlights">
+      </div>
+
+      <div class="trulens-options-toggle">
+        <label for="quiet-mode">Quiet Mode</label>
+        <input type="checkbox" id="quiet-mode">
+      </div>
+
+      <div class="trulens-options-toggle">
+        <label for="on-device-learning">On-device learning</label>
+        <input type="checkbox" id="on-device-learning">
+      </div>
+    </div>
+
+    <div class="trulens-options-section">
+      <div class="trulens-options-section-title">Perspective Sources</div>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+        Edit domain lists for each category (one per line, comma-separated)
+      </p>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px;">National</label>
+        <textarea class="trulens-options-textarea" id="sources-national" rows="2">nytimes.com, wsj.com, usatoday.com</textarea>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px;">International</label>
+        <textarea class="trulens-options-textarea" id="sources-international" rows="2">bbc.com, theguardian.com, reuters.com, aljazeera.com</textarea>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px;">Business</label>
+        <textarea class="trulens-options-textarea" id="sources-business" rows="2">bloomberg.com, ft.com</textarea>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px;">Public broadcaster</label>
+        <textarea class="trulens-options-textarea" id="sources-public" rows="2">npr.org, pbs.org</textarea>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; font-size: 14px;">Fact-checks</label>
+        <textarea class="trulens-options-textarea" id="sources-factchecks" rows="2">apnews.com, politifact.com, snopes.com</textarea>
+      </div>
+    </div>
+
+    <div class="trulens-options-section">
+      <button class="trulens-options-button" id="save-settings">Save Settings</button>
+      <button class="trulens-options-button" id="reset-weights" style="margin-left: 8px; background: var(--bg-primary); border: 1px solid var(--text-muted); color: var(--text-primary);">
+        Reset Weights
+      </button>
+    </div>
+
+    <div id="save-status" style="margin-top: 16px; font-size: 12px; color: var(--accent); display: none;"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
+

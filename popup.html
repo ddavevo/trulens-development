@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TruLens</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="trulens-popup">
+    <div class="trulens-popup-title">TruLens</div>
+    
+    <div id="trulens-popup-badge" style="margin-bottom: 16px; padding: 8px; background: var(--bg-primary); border-radius: 8px;">
+      <span class="trulens-badge-chip">Loading...</span>
+      <span class="trulens-badge-sublabel">confidence: steady</span>
+    </div>
+
+    <button class="trulens-popup-button" id="trulens-open-panel">Open panel</button>
+    <button class="trulens-popup-button" id="trulens-rescan">Re-scan page</button>
+    <button class="trulens-popup-button" id="trulens-toggle-highlights">Toggle highlights</button>
+    <button class="trulens-popup-button" id="trulens-open-perspective">Open perspective links</button>
+
+    <div class="trulens-popup-toggle">
+      <label for="trulens-quiet-mode">Quiet Mode</label>
+      <input type="checkbox" id="trulens-quiet-mode">
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
