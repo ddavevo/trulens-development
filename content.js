@@ -397,7 +397,12 @@
    * Build perspective links (Google queries per group)
    */
   async function buildPerspectiveLinks(topic) {
-    const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+    } catch (e) {
+      response = { data: null };
+    }
     const settings = response.data || {};
     const customSources = settings.perspectiveSources || {};
 
@@ -555,7 +560,12 @@
     }
 
     async init() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (this.settings.smartBubbles && !this.settings.quietMode) {
@@ -789,7 +799,12 @@
     }
 
     async updateSettings() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (this.settings.smartBubbles && !this.settings.quietMode) {
@@ -812,7 +827,12 @@
     }
 
     async init() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (this.settings.selectionToolbar) {
@@ -941,16 +961,25 @@
           title: document.title
         };
         
-        const response = await chrome.runtime.sendMessage({ 
-          type: 'TRULENS_GET_HIGHLIGHTS' 
-        });
+        let response;
+        try {
+          response = await chrome.runtime.sendMessage({ 
+            type: 'TRULENS_GET_HIGHLIGHTS' 
+          });
+        } catch (e) {
+          response = { data: null };
+        }
         const highlights = response.data || [];
         highlights.unshift(excerpt);
         
-        await chrome.runtime.sendMessage({
-          type: 'TRULENS_SET_HIGHLIGHTS',
-          highlights: highlights.slice(0, 100) // Keep last 100
-        });
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'TRULENS_SET_HIGHLIGHTS',
+            highlights: highlights.slice(0, 100) // Keep last 100
+          });
+        } catch (e) {
+          // Extension context invalidated - continue silently
+        }
 
         this.hideToolbar();
       }
@@ -963,7 +992,12 @@
     }
 
     async updateSettings() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (!this.settings.selectionToolbar) {
@@ -1009,26 +1043,31 @@
       if (!overviewEl) return;
 
       // Get latest scan or scan now
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_LATEST' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_LATEST' });
+      } catch (e) {
+        response = { data: null };
+      }
       let decision = response.data;
 
-      // Normalize invalid or missing decision objects
+      // ---- SAFETY NORMALIZATION PATCH ----
       if (!decision || typeof decision !== 'object') {
-        decision = {
-          label: 'Unknown',
-          confidence: 'tentative',
-          reasons: ['No analysis available'],
-          score: 0
-        };
+        decision = {};
       }
-
-      // Missing label → safe fallback
       if (!decision.label || typeof decision.label !== 'string') {
         decision.label = 'Unknown';
-        decision.confidence = decision.confidence || 'tentative';
-        decision.reasons = decision.reasons || ['No analysis available'];
-        decision.score = decision.score || 0;
       }
+      if (!decision.confidence) {
+        decision.confidence = 'tentative';
+      }
+      if (!Array.isArray(decision.reasons)) {
+        decision.reasons = ['No analysis available'];
+      }
+      if (typeof decision.score !== 'number') {
+        decision.score = 0;
+      }
+      // ---- END PATCH ----
 
       if (!decision || decision.url !== window.location.href) {
         // Scan now
@@ -1036,24 +1075,28 @@
         decision = await pageDecision(blocks);
         
         // Save
-        await chrome.runtime.sendMessage({
-          type: 'TRULENS_SAVE',
-          payload: {
-            url: window.location.href,
-            ts: Date.now(),
-            overall: decision.label,
-            reasons: decision.reasons,
-            confidence: decision.confidence,
-            score: decision.score
-          }
-        });
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'TRULENS_SAVE',
+            payload: {
+              url: window.location.href,
+              ts: Date.now(),
+              overall: decision.label,
+              reasons: decision.reasons,
+              confidence: decision.confidence,
+              score: decision.score
+            }
+          });
+        } catch (e) {
+          // Extension context invalidated - continue silently
+        }
       }
 
       // Safe labelClass computation
-      const label = decision.label;
+      const safeLabel = typeof decision.label === 'string' ? decision.label : 'Unknown';
       const labelClass =
-        typeof label === 'string' && label.includes('AI') ? 'ai' :
-        typeof label === 'string' && label.includes('Mixed') ? 'mixed' :
+        safeLabel.includes('AI') ? 'ai' :
+        safeLabel.includes('Mixed') ? 'mixed' :
         'human';
 
       // Render overview
@@ -1127,7 +1170,12 @@
       const highlightsEl = document.getElementById('trulens-highlights');
       if (!highlightsEl) return;
 
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+      } catch (e) {
+        response = { data: null };
+      }
       const highlights = response.data || [];
 
       if (highlights.length === 0) {
@@ -1211,13 +1259,17 @@
 
       // Update badge if visible
       const badge = document.getElementById('trulens-badge');
-      if (badge && currentAnalysis && typeof currentAnalysis.label === 'string') {
+      if (badge) {
         const chip = badge.querySelector('.trulens-badge-chip');
-        const label = currentAnalysis.label || 'Unknown';
-        chip.textContent = label;
+        const safeLabel = typeof currentAnalysis.label === 'string'
+          ? currentAnalysis.label
+          : 'Unknown';
+
+        chip.textContent = safeLabel;
+
         const labelClass =
-          label.includes('AI') ? 'ai' :
-          label.includes('Mixed') ? 'mixed' :
+          safeLabel.includes('AI') ? 'ai' :
+          safeLabel.includes('Mixed') ? 'mixed' :
           'human';
         chip.className = `trulens-badge-chip ${labelClass}`;
         badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${currentAnalysis.confidence || 'tentative'}`;
@@ -1287,6 +1339,8 @@
         if (settings.quietMode) {
           panel.hide();
         }
+      }).catch(e => {
+        // Extension context invalidated - continue silently
       });
     }
 
@@ -1311,7 +1365,11 @@
           settings: { ...settings, highlights: newValue }
         }).then(() => {
           toggleHighlights(newValue);
+        }).catch(e => {
+          // Extension context invalidated - continue silently
         });
+      }).catch(e => {
+        // Extension context invalidated - continue silently
       });
     }
   });
