@@ -1144,5 +1144,27 @@
     }
   });
 
+  // ============================================================================
+  // Margin Bubble API (for testing and future use)
+  // ============================================================================
+
+  // Expose MarginBubbleManager API to content script scope
+  const { createMarginBubble, removeMarginBubble, clearAllMarginBubbles } = 
+    window.MarginBubbleManager || {};
+
+  // Test function: Add a bubble to the first paragraph
+  function testMarginBubble() {
+    const firstP = document.querySelector('p');
+    if (firstP && createMarginBubble) {
+      createMarginBubble({
+        anchorNode: firstP,
+        message: "What assumptions is the author making here?"
+      });
+    }
+  }
+
+  // Uncomment the line below to test margin bubbles on page load
+  // setTimeout(testMarginBubble, 1000);
+
 })();
 
