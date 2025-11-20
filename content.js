@@ -281,6 +281,16 @@
    * Page-level decision from blocks
    */
   async function pageDecision(blocks) {
+    if (!blocks || blocks.length === 0) {
+      return {
+        score: 0,
+        label: 'Unknown',
+        confidence: 'tentative',
+        reasons: ['No readable content found'],
+        metrics: {},
+        blockScores: []
+      };
+    }
     const text = blocks.map(b => b.textContent).join(' ').trim();
     const metrics = metricsFor(text);
     const scored = await scoreMetrics(metrics);
@@ -900,6 +910,23 @@
         });
       }
 
+      if (!decision || typeof decision.label !== 'string') {
+        overviewEl.innerHTML = `
+          <div class="trulens-overview-label">Unknown</div>
+          <div class="trulens-overview-confidence">confidence: tentative</div>
+          <ul class="trulens-reasons">
+            <li>No analysis available yet.</li>
+          </ul>
+        `;
+        return;
+      }
+
+      const label = decision.label || 'Unknown';
+      const labelClass =
+        label.includes('AI') ? 'ai' :
+        label.includes('Mixed') ? 'mixed' :
+        'human';
+
       overviewEl.innerHTML = `
         <div class="trulens-overview-label">${decision.label}</div>
         <div class="trulens-overview-confidence">confidence: ${decision.confidence}</div>
@@ -923,7 +950,6 @@
       if (badge) {
         const chip = badge.querySelector('.trulens-badge-chip');
         chip.textContent = decision.label;
-        const labelClass = decision.label.includes('AI') ? 'ai' : decision.label.includes('Mixed') ? 'mixed' : 'human';
         chip.className = `trulens-badge-chip ${labelClass}`;
         badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${decision.confidence}`;
       }
