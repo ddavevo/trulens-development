@@ -314,6 +314,10 @@
 
     return {
       ...scored,
+      label: scored.label || 'Unknown',
+      confidence: scored.confidence || 'tentative',
+      reasons: scored.reasons || ['Mixed signals'],
+      score: typeof scored.score === 'number' ? scored.score : 0,
       metrics,
       blockScores
     };
@@ -1008,6 +1012,24 @@
       const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_LATEST' });
       let decision = response.data;
 
+      // Normalize invalid or missing decision objects
+      if (!decision || typeof decision !== 'object') {
+        decision = {
+          label: 'Unknown',
+          confidence: 'tentative',
+          reasons: ['No analysis available'],
+          score: 0
+        };
+      }
+
+      // Missing label → safe fallback
+      if (!decision.label || typeof decision.label !== 'string') {
+        decision.label = 'Unknown';
+        decision.confidence = decision.confidence || 'tentative';
+        decision.reasons = decision.reasons || ['No analysis available'];
+        decision.score = decision.score || 0;
+      }
+
       if (!decision || decision.url !== window.location.href) {
         // Scan now
         const blocks = visibleParagraphs();
@@ -1027,33 +1049,22 @@
         });
       }
 
-      if (!decision || typeof decision.label !== 'string') {
-        overviewEl.innerHTML = `
-          <div class="trulens-overview-label">Unknown</div>
-          <div class="trulens-overview-confidence">confidence: tentative</div>
-          <ul class="trulens-reasons">
-            <li>No analysis available yet.</li>
-          </ul>
-        `;
-        return;
-      }
-
-      const label = decision.label || 'Unknown';
+      // Safe labelClass computation
+      const label = decision.label;
       const labelClass =
-        label.includes('AI') ? 'ai' :
-        label.includes('Mixed') ? 'mixed' :
+        typeof label === 'string' && label.includes('AI') ? 'ai' :
+        typeof label === 'string' && label.includes('Mixed') ? 'mixed' :
         'human';
 
+      // Render overview
       overviewEl.innerHTML = `
         <div class="trulens-overview-label">${decision.label}</div>
         <div class="trulens-overview-confidence">confidence: ${decision.confidence}</div>
         <ul class="trulens-reasons">
-          ${decision.reasons.map(r => `<li>${r}</li>`).join('')}
+          ${(decision.reasons || []).map(r => `<li>${r}</li>`).join('')}
         </ul>
         <button class="trulens-show-details">Show details</button>
-        <div class="trulens-details">
-          Score: ${Math.round(decision.score)}/100
-        </div>
+        <div class="trulens-details">Score: ${Math.round(decision.score)}/100</div>
       `;
 
       overviewEl.querySelector('.trulens-show-details').addEventListener('click', (e) => {
@@ -1167,6 +1178,20 @@
       if (blocks.length === 0) return;
 
       currentAnalysis = await pageDecision(blocks);
+      
+      if (!currentAnalysis || typeof currentAnalysis !== 'object') {
+        currentAnalysis = {
+          label: 'Unknown',
+          confidence: 'tentative',
+          reasons: ['No readable content'],
+          score: 0
+        };
+      }
+
+      // Guarantee label exists
+      if (!currentAnalysis.label || typeof currentAnalysis.label !== 'string') {
+        currentAnalysis.label = 'Unknown';
+      }
       
       try {
         await chrome.runtime.sendMessage({
