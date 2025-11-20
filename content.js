@@ -423,6 +423,117 @@
     return links;
   }
 
+  /**
+   * Fetch article data with excerpts and titles from sources
+   */
+  async function fetchArticleData(topic, sources) {
+    const articles = [];
+    
+    // Request article data from background script
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'TRULENS_FETCH_ARTICLES',
+        topic: topic,
+        sources: sources
+      });
+      
+      if (response && response.success && response.data) {
+        return response.data;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch article data:', error);
+    }
+
+    // Fallback: create article data structure from sources
+    // In a real implementation, this would fetch actual article data
+    for (const source of sources) {
+      articles.push({
+        url: source.url,
+        title: `Coverage on ${source.domain}`,
+        excerpt: `Find articles about "${topic}" from ${source.domain}. Click to view search results.`,
+        source: source.domain,
+        domain: source.domain,
+        relevance: 0.5,
+        angle: source.group || 'General'
+      });
+    }
+
+    return articles;
+  }
+
+  /**
+   * Calculate relevance score based on topic matching
+   */
+  function calculateRelevance(article, topic) {
+    const topicWords = topic.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const articleText = `${article.title} ${article.excerpt}`.toLowerCase();
+    
+    let matches = 0;
+    for (const word of topicWords) {
+      if (articleText.includes(word)) {
+        matches++;
+      }
+    }
+    
+    return topicWords.length > 0 ? matches / topicWords.length : 0.5;
+  }
+
+  /**
+   * Calculate distinctness score based on angle/perspective diversity
+   */
+  function calculateDistinctness(article, otherArticles) {
+    if (otherArticles.length === 0) return 1.0;
+    
+    // Check if this article has a different angle/perspective
+    const sameDomain = otherArticles.filter(a => a.domain === article.domain).length;
+    const sameAngle = otherArticles.filter(a => a.angle === article.angle).length;
+    
+    // Prefer articles from different domains and angles
+    // Higher distinctness = more unique perspective
+    let distinctness = 1.0;
+    
+    // Penalize if same domain already appears (want diverse sources)
+    if (sameDomain > 0) distinctness -= 0.4;
+    
+    // Penalize if too many articles from same angle/category
+    // But allow some from same angle if they're from different sources
+    if (sameAngle > 3) distinctness -= 0.3;
+    else if (sameAngle > 1 && sameDomain === 0) distinctness -= 0.1; // Different source, same angle is OK
+    
+    // Boost distinctness for fact-check sources (valuable perspective)
+    if (article.angle === 'Fact-checks') distinctness += 0.2;
+    
+    // Boost distinctness for international sources (different perspective)
+    if (article.angle === 'International') distinctness += 0.15;
+    
+    return Math.max(0.1, Math.min(1.0, distinctness));
+  }
+
+  /**
+   * Rank articles by relevance and distinctness
+   */
+  function rankArticles(articles, topic) {
+    const ranked = articles.map(article => {
+      const relevance = calculateRelevance(article, topic);
+      const distinctness = calculateDistinctness(article, articles.filter(a => a !== article));
+      
+      // Combined score: 60% relevance, 40% distinctness
+      const score = (relevance * 0.6) + (distinctness * 0.4);
+      
+      return {
+        ...article,
+        relevance,
+        distinctness,
+        score
+      };
+    });
+
+    // Sort by score (highest first)
+    ranked.sort((a, b) => b.score - a.score);
+    
+    return ranked;
+  }
+
   // ============================================================================
   // Smart Bubbles Manager
   // ============================================================================
@@ -965,32 +1076,40 @@
       const sourcesEl = document.getElementById('trulens-sources');
       if (!sourcesEl) return;
 
+      sourcesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading sources...</div>';
+
       const blocks = visibleParagraphs();
       const text = blocks.map(b => b.textContent).join(' ').trim();
       const topic = topTopic(text);
       const links = await buildPerspectiveLinks(topic);
 
-      // Group by category
-      const grouped = {};
-      for (const link of links) {
-        if (!grouped[link.group]) {
-          grouped[link.group] = [];
-        }
-        grouped[link.group].push(link);
+      // Fetch article data with excerpts
+      const articles = await fetchArticleData(topic, links);
+      
+      // Rank articles by relevance and distinctness
+      const rankedArticles = rankArticles(articles, topic);
+
+      // Display ranked articles (no grouping by category)
+      if (rankedArticles.length === 0) {
+        sourcesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No sources found.</div>';
+        return;
       }
 
-      sourcesEl.innerHTML = Object.entries(grouped).map(([group, groupLinks]) => `
-        <div class="trulens-source-group">
-          <div class="trulens-source-group-title">${group}</div>
-          <div class="trulens-source-links">
-            ${groupLinks.map(link => `
-              <a href="${link.url}" target="_blank" rel="noopener" class="trulens-source-link">
-                ${link.domain}
-              </a>
-            `).join('')}
-          </div>
+      sourcesEl.innerHTML = `
+        <div class="trulens-sources-list">
+          ${rankedArticles.map(article => `
+            <div class="trulens-source-card">
+              <div class="trulens-source-excerpt">${article.excerpt}</div>
+              <div class="trulens-source-meta">
+                <a href="${article.url}" target="_blank" rel="noopener" class="trulens-source-article-title">
+                  ${article.title}
+                </a>
+                <span class="trulens-source-name">${article.source}</span>
+              </div>
+            </div>
+          `).join('')}
         </div>
-      `).join('');
+      `;
     },
 
     async updateHighlights() {
