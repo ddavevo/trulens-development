@@ -198,8 +198,14 @@
    * Score metrics to label (0-100, higher = more AI-like)
    */
   async function scoreMetrics(m) {
-    const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_WEIGHTS' });
-    const weights = response.data || {
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_WEIGHTS' });
+    } catch (error) {
+      // Extension context invalidated or other runtime errors
+      response = { data: null };
+    }
+    const weights = response?.data || {
       avgSentLen: 0.15,
       stdSentLen: 0.10,
       ttr: 0.20,
@@ -1043,26 +1049,34 @@
 
       currentAnalysis = await pageDecision(blocks);
       
-      await chrome.runtime.sendMessage({
-        type: 'TRULENS_SAVE',
-        payload: {
-          url: window.location.href,
-          ts: Date.now(),
-          overall: currentAnalysis.label,
-          reasons: currentAnalysis.reasons,
-          confidence: currentAnalysis.confidence,
-          score: currentAnalysis.score
-        }
-      });
+      try {
+        await chrome.runtime.sendMessage({
+          type: 'TRULENS_SAVE',
+          payload: {
+            url: window.location.href,
+            ts: Date.now(),
+            overall: currentAnalysis.label,
+            reasons: currentAnalysis.reasons,
+            confidence: currentAnalysis.confidence,
+            score: currentAnalysis.score
+          }
+        });
+      } catch (error) {
+        // Extension context invalidated or other runtime errors - continue silently
+      }
 
       // Update badge if visible
       const badge = document.getElementById('trulens-badge');
-      if (badge) {
+      if (badge && currentAnalysis && typeof currentAnalysis.label === 'string') {
         const chip = badge.querySelector('.trulens-badge-chip');
-        chip.textContent = currentAnalysis.label;
-        const labelClass = currentAnalysis.label.includes('AI') ? 'ai' : currentAnalysis.label.includes('Mixed') ? 'mixed' : 'human';
+        const label = currentAnalysis.label || 'Unknown';
+        chip.textContent = label;
+        const labelClass =
+          label.includes('AI') ? 'ai' :
+          label.includes('Mixed') ? 'mixed' :
+          'human';
         chip.className = `trulens-badge-chip ${labelClass}`;
-        badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${currentAnalysis.confidence}`;
+        badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${currentAnalysis.confidence || 'tentative'}`;
       }
     }, 300);
   }
