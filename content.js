@@ -69,33 +69,38 @@
       panelEl.setAttribute('role', 'dialog');
       panelEl.setAttribute('aria-label', 'TruLens analysis panel');
       panelEl.innerHTML = `
-        <div class="trulens-panel-header">
-          <div class="trulens-panel-title">TruLens</div>
-          <button class="trulens-panel-close" aria-label="Close panel">×</button>
-        </div>
-        <div class="trulens-panel-tabs">
-          <button class="trulens-panel-tab active" data-tab="overview">Overview</button>
-          <button class="trulens-panel-tab" data-tab="sources">Sources</button>
-          <button class="trulens-panel-tab" data-tab="bubbles">Bubbles</button>
-          <button class="trulens-panel-tab" data-tab="highlights">My Highlights</button>
-        </div>
-        <div class="trulens-panel-content">
-          <div class="trulens-panel-section active" id="trulens-overview"></div>
-          <div class="trulens-panel-section" id="trulens-sources"></div>
-          <div class="trulens-panel-section" id="trulens-bubbles"></div>
-          <div class="trulens-panel-section" id="trulens-highlights"></div>
+        <div class="trulens-panel-close" aria-label="Close panel">×</div>
+        <div class="sources-overview-container">
+          <div class="filter-section-top">
+            <button class="filter-button-top">Trulens</button>
+          </div>
+          <div class="tab-navigation">
+            <button class="tab-button active" data-tab="sources">Sources</button>
+            <button class="tab-button" data-tab="highlights">My Highlights</button>
+          </div>
+          <div class="trulens-panel-content">
+            <div class="trulens-panel-section active" id="trulens-sources"></div>
+            <div class="trulens-panel-section" id="trulens-highlights"></div>
+          </div>
         </div>
       `;
       document.body.appendChild(panelEl);
       
       // Tab switching
-      panelEl.querySelectorAll('.trulens-panel-tab').forEach(tab => {
+      panelEl.querySelectorAll('.tab-button').forEach(tab => {
         tab.addEventListener('click', () => {
           const tabName = tab.dataset.tab;
-          panelEl.querySelectorAll('.trulens-panel-tab').forEach(t => t.classList.remove('active'));
+          panelEl.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
           panelEl.querySelectorAll('.trulens-panel-section').forEach(s => s.classList.remove('active'));
           tab.classList.add('active');
           document.getElementById(`trulens-${tabName}`).classList.add('active');
+          
+          // Update content when switching tabs
+          if (tabName === 'sources') {
+            panel.updateSources();
+          } else if (tabName === 'highlights') {
+            panel.updateHighlights();
+          }
         });
         tab.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -1026,7 +1031,8 @@
       if (panelEl) {
         panelEl.classList.add('open');
         this.isOpen = true;
-        this.updateOverview();
+        // Default to Sources tab
+        this.updateSources();
       }
     },
 
@@ -1176,9 +1182,6 @@
       sourcesEl.innerHTML = `
         <div class="sources-overview">
           <!-- Filter Section -->
-          <div class="filter-section">
-            <button class="filter-button">Trulens</button>
-          </div>
 
           <!-- Main Content -->
           <div class="main-content">
@@ -1243,15 +1246,19 @@
                     <div class="source-card" data-reliability="${reliability}">
                       <p class="source-quote">${escapeHtml(article.excerpt || 'No excerpt available.')}</p>
                       <div class="source-meta">
-                        <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title || article.source)}</a>
+                        <div class="source-title-row">
+                          <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title || article.source)}</a>
+                        </div>
                         <div class="source-footer">
                           <div class="source-publisher">
                             <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
                             <span class="publisher-name">${escapeHtml(article.source || domain)}</span>
                           </div>
                           <div class="reliability-badge ${reliability}">
-                            ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
-                            <span>${reliabilityLabels[reliability]}</span>
+                            <div>
+                              ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
+                              <span>${reliabilityLabels[reliability]}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
