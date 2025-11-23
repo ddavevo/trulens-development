@@ -1266,6 +1266,36 @@
 
       // Setup interactivity
       setupSourcesInteractivity(sourcesEl, talkingPoints);
+    },
+
+    async updateHighlights() {
+      const highlightsEl = document.getElementById('trulens-highlights');
+      if (!highlightsEl) return;
+
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+      } catch (e) {
+        response = { data: null };
+      }
+      const highlights = response.data || [];
+
+      if (highlights.length === 0) {
+        highlightsEl.innerHTML = '<p style="color: var(--text-muted);">No highlights saved yet.</p>';
+        return;
+      }
+
+      highlightsEl.innerHTML = highlights.map(h => `
+        <div style="padding: 12px; background: var(--bg-primary); border-radius: var(--radius-card); margin-bottom: 12px;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+            ${new Date(h.timestamp).toLocaleString()}
+          </div>
+          <div style="font-size: 13px; margin-bottom: 8px;">${h.text}</div>
+          <a href="${h.url}" target="_blank" rel="noopener" style="font-size: 11px; color: var(--accent);">
+            ${h.title || h.url}
+          </a>
+        </div>
+      `).join('');
     }
   };
 
@@ -1327,44 +1357,6 @@
       });
     }
   }
-
-  // Helper function to escape HTML
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
-  async function updateHighlights() {
-    const highlightsEl = document.getElementById('trulens-highlights');
-    if (!highlightsEl) return;
-
-    let response;
-      try {
-        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
-      } catch (e) {
-        response = { data: null };
-      }
-      const highlights = response.data || [];
-
-      if (highlights.length === 0) {
-        highlightsEl.innerHTML = '<p style="color: var(--text-muted);">No highlights saved yet.</p>';
-        return;
-      }
-
-      highlightsEl.innerHTML = highlights.map(h => `
-        <div style="padding: 12px; background: var(--bg-primary); border-radius: var(--radius-card); margin-bottom: 12px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-            ${new Date(h.timestamp).toLocaleString()}
-          </div>
-          <div style="font-size: 13px; margin-bottom: 8px;">${h.text}</div>
-          <a href="${h.url}" target="_blank" rel="noopener" style="font-size: 11px; color: var(--accent);">
-            ${h.title || h.url}
-          </a>
-        </div>
-      `).join('');
-    };
-  });
 
   // ============================================================================
   // Highlights Toggle
