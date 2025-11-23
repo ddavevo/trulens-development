@@ -1287,22 +1287,89 @@
       }
       const highlights = response.data || [];
 
+      // Get reliability for each highlight (placeholder logic - replace with actual reliability scoring)
+      const getReliability = (highlight, index) => {
+        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
+        return reliabilities[index % 3];
+      };
+
+      const getReliabilityIcon = (reliability) => {
+        const icons = {
+          'reliable': chrome.runtime.getURL('assets/lets-icons_check-fill.svg'),
+          'less-reliable': chrome.runtime.getURL('assets/icon-park-solid_caution.svg'),
+          'not-reliable': chrome.runtime.getURL('assets/solar_danger-bold.svg')
+        };
+        return icons[reliability] || '';
+      };
+
       if (highlights.length === 0) {
-        highlightsEl.innerHTML = '<p style="color: var(--text-muted);">No highlights saved yet.</p>';
+        highlightsEl.innerHTML = '<p style="color: var(--secondary-content, #797979); padding: 16px;">No highlights saved yet.</p>';
         return;
       }
 
-      highlightsEl.innerHTML = highlights.map(h => `
-        <div style="padding: 12px; background: var(--bg-primary); border-radius: var(--radius-card); margin-bottom: 12px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-            ${new Date(h.timestamp).toLocaleString()}
+      highlightsEl.innerHTML = `
+        <div class="highlights-container">
+          <div class="highlights-header-section">
+            <div class="highlights-header-row">
+              <p class="highlights-breadcrumb">&lt; Sources / Documented history with</p>
+              <button class="filter-icon-button" aria-label="Filter">
+                <img src="${chrome.runtime.getURL('assets/mdi_filter.svg')}" alt="Filter" class="filter-icon">
+              </button>
+            </div>
           </div>
-          <div style="font-size: 13px; margin-bottom: 8px;">${h.text}</div>
-          <a href="${h.url}" target="_blank" rel="noopener" style="font-size: 11px; color: var(--accent);">
-            ${h.title || h.url}
-          </a>
+          <div class="highlights-cards-list">
+            ${highlights.map((highlight, index) => {
+              const reliability = getReliability(highlight, index);
+              const reliabilityLabels = {
+                'reliable': 'Reliable',
+                'less-reliable': 'Less Reliable',
+                'not-reliable': 'Not Reliable'
+              };
+              const reliabilityIcon = getReliabilityIcon(reliability);
+              
+              // Extract domain for publisher avatar color
+              const url = highlight.url || '';
+              const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+              const avatarColor = '#e02424'; // Default, could be customized per domain
+              
+              // Use highlight text as quote, or excerpt if available
+              const quote = highlight.text || highlight.excerpt || 'No excerpt available.';
+              const title = highlight.title || domain || 'Untitled';
+              
+              return `
+                <div class="source-card" data-reliability="${reliability}">
+                  <p class="source-quote">${escapeHtml(quote)}</p>
+                  <div class="source-meta">
+                    <div class="source-title-row">
+                      <a href="${highlight.url || '#'}" target="_blank" rel="noopener" class="source-title">${escapeHtml(title)}</a>
+                    </div>
+                    <div class="source-footer">
+                      <div class="source-publisher">
+                        <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
+                        <span class="publisher-name">${escapeHtml(domain || 'Unknown')}</span>
+                      </div>
+                      <div class="reliability-badge ${reliability}">
+                        <div>
+                          ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
+                          <span>${reliabilityLabels[reliability]}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
-      `).join('');
+      `;
+
+      // Setup interactivity for filter button
+      const filterButton = highlightsEl.querySelector('.filter-icon-button');
+      if (filterButton) {
+        filterButton.addEventListener('click', () => {
+          console.log('Filter button clicked in highlights');
+        });
+      }
     }
   };
 
