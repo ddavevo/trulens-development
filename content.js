@@ -1143,34 +1143,203 @@
       // Rank articles by relevance and distinctness
       const rankedArticles = rankArticles(articles, topic);
 
-      // Display ranked articles (no grouping by category)
+      // Determine reliability for each article (placeholder logic - replace with actual reliability scoring)
+      const getReliability = (article, index) => {
+        // Placeholder: alternate between reliable, less-reliable, not-reliable for demo
+        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
+        return reliabilities[index % 3];
+      };
+
+      const getReliabilityIcon = (reliability) => {
+        const icons = {
+          'reliable': chrome.runtime.getURL('assets/lets-icons_check-fill.svg'),
+          'less-reliable': chrome.runtime.getURL('assets/icon-park-solid_caution.svg'),
+          'not-reliable': chrome.runtime.getURL('assets/solar_danger-bold.svg')
+        };
+        return icons[reliability] || '';
+      };
+
+      // Generate talking points (placeholder - replace with actual analysis)
+      const talkingPoints = [
+        { percentage: 46, text: 'Documented history with Epstein' },
+        { percentage: 22, text: 'Redactions' },
+        { percentage: 13, text: 'Ongoing lawsuits' },
+        { percentage: 19, text: 'Activity on social media, other topic, other topic, other topic, other topic...', hasMore: true }
+      ];
+
+      // Render new Sources Overview UI
       if (rankedArticles.length === 0) {
         sourcesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No sources found.</div>';
         return;
       }
 
       sourcesEl.innerHTML = `
-        <div class="trulens-sources-list">
-          ${rankedArticles.map(article => `
-            <div class="trulens-source-card">
-              <div class="trulens-source-excerpt">${article.excerpt}</div>
-              <div class="trulens-source-meta">
-                <a href="${article.url}" target="_blank" rel="noopener" class="trulens-source-article-title">
-                  ${article.title}
-                </a>
-                <span class="trulens-source-name">${article.source}</span>
+        <div class="sources-overview">
+          <!-- Filter Section -->
+          <div class="filter-section">
+            <button class="filter-button">Trulens</button>
+          </div>
+
+          <!-- Main Content -->
+          <div class="main-content">
+            <!-- Warning Box -->
+            <div class="warning-box">
+              <div class="warning-box-header">
+                <img src="${chrome.runtime.getURL('assets/icon-park-solid_caution.svg')}" alt="Caution" class="warning-icon">
+                <span class="warning-label">Less Reliable</span>
+              </div>
+              <p class="warning-text">While the facts are largely consistent with other sources, based on previous instances and reasons, reasons, there may be sway.</p>
+            </div>
+
+            <!-- Talking Point Breakdown -->
+            <div class="talking-points-section">
+              <div class="section-header">
+                <h2 class="section-title">Talking point breakdown</h2>
+                <p class="section-subtitle">Click into them to explore topics further.</p>
+              </div>
+              <div class="talking-points-list">
+                ${talkingPoints.map((point, index) => {
+                  if (point.hasMore) {
+                    return `
+                      <div class="talking-point-item-row">
+                        <span class="talking-point-item-row-text">${point.percentage}% - ${escapeHtml(point.text)}</span>
+                        <button class="more-button" data-point-index="${index}">+ More</button>
+                      </div>
+                    `;
+                  } else {
+                    return `
+                      <div class="talking-point-item">
+                        <span class="talking-point-text">${point.percentage}% - ${escapeHtml(point.text)}</span>
+                      </div>
+                    `;
+                  }
+                }).join('')}
               </div>
             </div>
-          `).join('')}
+
+            <!-- Other Angles Section -->
+            <div class="other-angles-section">
+              <div class="section-header-row">
+                <h2 class="section-title">Other angles on this topic</h2>
+                <button class="filter-icon-button" aria-label="Filter">
+                  <img src="${chrome.runtime.getURL('assets/mdi_filter.svg')}" alt="Filter" class="filter-icon">
+                </button>
+              </div>
+              <div class="source-cards-list">
+                ${rankedArticles.slice(0, 3).map((article, index) => {
+                  const reliability = getReliability(article, index);
+                  const reliabilityLabels = {
+                    'reliable': 'Reliable',
+                    'less-reliable': 'Less Reliable',
+                    'not-reliable': 'Not Reliable'
+                  };
+                  const reliabilityIcon = getReliabilityIcon(reliability);
+                  
+                  // Extract domain for publisher avatar color
+                  const domain = article.domain || article.source || '';
+                  const avatarColor = '#e02424'; // Default, could be customized per domain
+                  
+                  return `
+                    <div class="source-card" data-reliability="${reliability}">
+                      <p class="source-quote">${escapeHtml(article.excerpt || 'No excerpt available.')}</p>
+                      <div class="source-meta">
+                        <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title || article.source)}</a>
+                        <div class="source-footer">
+                          <div class="source-publisher">
+                            <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
+                            <span class="publisher-name">${escapeHtml(article.source || domain)}</span>
+                          </div>
+                          <div class="reliability-badge ${reliability}">
+                            ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
+                            <span>${reliabilityLabels[reliability]}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
         </div>
       `;
-    },
 
-    async updateHighlights() {
-      const highlightsEl = document.getElementById('trulens-highlights');
-      if (!highlightsEl) return;
+      // Setup interactivity
+      setupSourcesInteractivity(sourcesEl, talkingPoints);
+    }
+  };
 
-      let response;
+  // Helper function to escape HTML
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Setup Sources Overview interactivity
+  function setupSourcesInteractivity(sourcesEl, talkingPoints) {
+    // Talking point click handlers
+    const talkingPointItems = sourcesEl.querySelectorAll('.talking-point-item, .talking-point-item-row');
+    talkingPointItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('more-button')) {
+          return;
+        }
+        const text = item.querySelector('.talking-point-text, .talking-point-item-row-text')?.textContent;
+        if (text) {
+          console.log('Talking point clicked:', text);
+        }
+      });
+    });
+
+    // "More" button handlers
+    const moreButtons = sourcesEl.querySelectorAll('.more-button');
+    moreButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt(button.dataset.pointIndex);
+        const point = talkingPoints[index];
+        if (point) {
+          console.log('Expanding:', point);
+        }
+      });
+    });
+
+    // Source card click handlers
+    const sourceCards = sourcesEl.querySelectorAll('.source-card');
+    sourceCards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.tagName === 'A') {
+          return;
+        }
+        const title = card.querySelector('.source-title')?.textContent;
+        if (title) {
+          console.log('Source card clicked:', title);
+        }
+      });
+    });
+
+    // Filter button handler
+    const filterButton = sourcesEl.querySelector('.filter-icon-button');
+    if (filterButton) {
+      filterButton.addEventListener('click', () => {
+        console.log('Filter button clicked');
+      });
+    }
+  }
+
+  // Helper function to escape HTML
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  async function updateHighlights() {
+    const highlightsEl = document.getElementById('trulens-highlights');
+    if (!highlightsEl) return;
+
+    let response;
       try {
         response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
       } catch (e) {
@@ -1194,8 +1363,8 @@
           </a>
         </div>
       `).join('');
-    }
-  };
+    };
+  });
 
   // ============================================================================
   // Highlights Toggle
