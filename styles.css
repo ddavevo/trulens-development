@@ -280,8 +280,9 @@
 }
 
 /* Sources Overview - New UI from Figma */
-/* Colors from XML Variables */
+/* Design Tokens - Standardized Values */
 :root {
+  /* Colors */
   --secondary-content: #797979;
   --primary-content: #505050;
   --reliable-bg: #dfffd4;
@@ -293,6 +294,31 @@
   --background-light: #e5e4e4;
   --border-color: #797979;
   --filter-bg: #efefef;
+  
+  /* Typography - Font Sizes */
+  --font-size-xs: 10px;    /* Labels, badges, publisher names */
+  --font-size-sm: 12px;    /* Body text, buttons, tabs, section titles */
+  --font-size-md: 14px;    /* (Available for future use) */
+  --font-size-lg: 16px;    /* Source card quotes (bold) */
+  
+  /* Spacing Scale */
+  --spacing-xs: 2px;       /* Minimal gap */
+  --spacing-sm: 4px;       /* Tight spacing */
+  --spacing-md: 6px;       /* Small spacing */
+  --spacing-lg: 8px;       /* Standard small spacing */
+  --spacing-xl: 12px;      /* Standard padding */
+  --spacing-2xl: 14px;     /* Section gaps */
+  --spacing-3xl: 16px;     /* Standard spacing */
+  --spacing-4xl: 20px;     /* Medium spacing */
+  --spacing-5xl: 32px;     /* Large spacing */
+  
+  /* Component Dimensions */
+  --panel-width: 359px;
+  --content-width: 327px;
+  --inner-content-width: 303px;
+  --card-height: 180px;
+  --tab-height: 31px;
+  --filter-height: 39px;
 }
 
 /* Main Content Container */
