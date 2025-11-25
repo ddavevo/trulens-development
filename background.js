@@ -119,6 +119,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'TRULENS_FETCH_ARTICLES') {
+    handleFetchArticles(message.topic, message.sources).then(data => {
+      sendResponse({ success: true, data });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
+    });
+    return true;
+  }
+
   return false;
 });
 
@@ -136,5 +145,61 @@ async function handleGetLatest() {
   const result = await chrome.storage.local.get('scans');
   const scans = result.scans || [];
   return scans.length > 0 ? scans[0] : null;
+}
+
+async function handleFetchArticles(topic, sources) {
+  const articles = [];
+  
+  // For each source, create article data structure
+  // In a production implementation, this would:
+  // 1. Use Google Custom Search API or NewsAPI to fetch real articles
+  // 2. Extract excerpts and titles from the results
+  // 3. Return structured data
+  
+  // Generate more realistic excerpts based on source type
+  const excerptTemplates = {
+    'National': `"${topic}" has been covered extensively, with analysis of its implications and impact on current events.`,
+    'International': `Global perspectives on "${topic}" reveal different viewpoints and cultural contexts from around the world.`,
+    'Business': `The business implications of "${topic}" are analyzed through economic and market lenses.`,
+    'Public broadcaster': `In-depth reporting on "${topic}" with balanced analysis and fact-based coverage.`,
+    'Fact-checks': `Fact-checking coverage of "${topic}" verifies claims and provides accurate information.`,
+    'General': `Coverage of "${topic}" provides context and analysis from this source.`
+  };
+  
+  for (const source of sources) {
+    try {
+      const searchUrl = source.url;
+      const group = source.group || 'General';
+      const excerptTemplate = excerptTemplates[group] || excerptTemplates['General'];
+      
+      // Create article title based on domain and topic
+      const domainName = source.domain.replace('.com', '').replace('.org', '').replace('.net', '');
+      const title = `${domainName.charAt(0).toUpperCase() + domainName.slice(1)}: ${topic}`;
+      
+      articles.push({
+        url: searchUrl,
+        title: title,
+        excerpt: excerptTemplate,
+        source: source.domain,
+        domain: source.domain,
+        relevance: 0.5,
+        angle: group
+      });
+    } catch (error) {
+      console.warn(`Failed to fetch article for ${source.domain}:`, error);
+      // Include fallback article data
+      articles.push({
+        url: source.url,
+        title: `Coverage from ${source.domain}`,
+        excerpt: `Find articles about "${topic}" from ${source.domain}.`,
+        source: source.domain,
+        domain: source.domain,
+        relevance: 0.3,
+        angle: source.group || 'General'
+      });
+    }
+  }
+  
+  return articles;
 }
 

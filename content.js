@@ -69,33 +69,42 @@
       panelEl.setAttribute('role', 'dialog');
       panelEl.setAttribute('aria-label', 'TruLens analysis panel');
       panelEl.innerHTML = `
-        <div class="trulens-panel-header">
-          <div class="trulens-panel-title">TruLens</div>
-          <button class="trulens-panel-close" aria-label="Close panel">×</button>
-        </div>
-        <div class="trulens-panel-tabs">
-          <button class="trulens-panel-tab active" data-tab="overview">Overview</button>
-          <button class="trulens-panel-tab" data-tab="sources">Sources</button>
-          <button class="trulens-panel-tab" data-tab="bubbles">Bubbles</button>
-          <button class="trulens-panel-tab" data-tab="highlights">My Highlights</button>
-        </div>
-        <div class="trulens-panel-content">
-          <div class="trulens-panel-section active" id="trulens-overview"></div>
-          <div class="trulens-panel-section" id="trulens-sources"></div>
-          <div class="trulens-panel-section" id="trulens-bubbles"></div>
-          <div class="trulens-panel-section" id="trulens-highlights"></div>
+        <div class="trulens-panel-close" aria-label="Close panel">×</div>
+        <div class="sources-overview-container">
+          <div class="filter-section-top">
+            <button class="filter-button-top">Trulens</button>
+          </div>
+          <div class="tab-navigation">
+            <button class="tab-button active" data-tab="references">References</button>
+            <button class="tab-button" data-tab="summary">Summary</button>
+            <button class="tab-button" data-tab="how-to-use">How to Use</button>
+          </div>
+          <div class="trulens-panel-content">
+            <div class="trulens-panel-section active" id="trulens-references"></div>
+            <div class="trulens-panel-section" id="trulens-summary"></div>
+            <div class="trulens-panel-section" id="trulens-how-to-use"></div>
+          </div>
         </div>
       `;
       document.body.appendChild(panelEl);
       
       // Tab switching
-      panelEl.querySelectorAll('.trulens-panel-tab').forEach(tab => {
+      panelEl.querySelectorAll('.tab-button').forEach(tab => {
         tab.addEventListener('click', () => {
           const tabName = tab.dataset.tab;
-          panelEl.querySelectorAll('.trulens-panel-tab').forEach(t => t.classList.remove('active'));
+          panelEl.querySelectorAll('.tab-button').forEach(t => t.classList.remove('active'));
           panelEl.querySelectorAll('.trulens-panel-section').forEach(s => s.classList.remove('active'));
           tab.classList.add('active');
           document.getElementById(`trulens-${tabName}`).classList.add('active');
+          
+          // Update content when switching tabs
+          if (tabName === 'references') {
+            panel.updateReferences();
+          } else if (tabName === 'summary') {
+            panel.updateSummary();
+          } else if (tabName === 'how-to-use') {
+            panel.updateHowToUse();
+          }
         });
         tab.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -198,8 +207,14 @@
    * Score metrics to label (0-100, higher = more AI-like)
    */
   async function scoreMetrics(m) {
-    const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_WEIGHTS' });
-    const weights = response.data || {
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_WEIGHTS' });
+    } catch (error) {
+      // Extension context invalidated or other runtime errors
+      response = { data: null };
+    }
+    const weights = response?.data || {
       avgSentLen: 0.15,
       stdSentLen: 0.10,
       ttr: 0.20,
@@ -281,6 +296,16 @@
    * Page-level decision from blocks
    */
   async function pageDecision(blocks) {
+    if (!blocks || blocks.length === 0) {
+      return {
+        score: 0,
+        label: 'Unknown',
+        confidence: 'tentative',
+        reasons: ['No readable content found'],
+        metrics: {},
+        blockScores: []
+      };
+    }
     const text = blocks.map(b => b.textContent).join(' ').trim();
     const metrics = metricsFor(text);
     const scored = await scoreMetrics(metrics);
@@ -298,6 +323,10 @@
 
     return {
       ...scored,
+      label: scored.label || 'Unknown',
+      confidence: scored.confidence || 'tentative',
+      reasons: scored.reasons || ['Mixed signals'],
+      score: typeof scored.score === 'number' ? scored.score : 0,
       metrics,
       blockScores
     };
@@ -377,7 +406,12 @@
    * Build perspective links (Google queries per group)
    */
   async function buildPerspectiveLinks(topic) {
-    const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+    } catch (e) {
+      response = { data: null };
+    }
     const settings = response.data || {};
     const customSources = settings.perspectiveSources || {};
 
@@ -407,6 +441,117 @@
     return links;
   }
 
+  /**
+   * Fetch article data with excerpts and titles from sources
+   */
+  async function fetchArticleData(topic, sources) {
+    const articles = [];
+    
+    // Request article data from background script
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'TRULENS_FETCH_ARTICLES',
+        topic: topic,
+        sources: sources
+      });
+      
+      if (response && response.success && response.data) {
+        return response.data;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch article data:', error);
+    }
+
+    // Fallback: create article data structure from sources
+    // In a real implementation, this would fetch actual article data
+    for (const source of sources) {
+      articles.push({
+        url: source.url,
+        title: `Coverage on ${source.domain}`,
+        excerpt: `Find articles about "${topic}" from ${source.domain}. Click to view search results.`,
+        source: source.domain,
+        domain: source.domain,
+        relevance: 0.5,
+        angle: source.group || 'General'
+      });
+    }
+
+    return articles;
+  }
+
+  /**
+   * Calculate relevance score based on topic matching
+   */
+  function calculateRelevance(article, topic) {
+    const topicWords = topic.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    const articleText = `${article.title} ${article.excerpt}`.toLowerCase();
+    
+    let matches = 0;
+    for (const word of topicWords) {
+      if (articleText.includes(word)) {
+        matches++;
+      }
+    }
+    
+    return topicWords.length > 0 ? matches / topicWords.length : 0.5;
+  }
+
+  /**
+   * Calculate distinctness score based on angle/perspective diversity
+   */
+  function calculateDistinctness(article, otherArticles) {
+    if (otherArticles.length === 0) return 1.0;
+    
+    // Check if this article has a different angle/perspective
+    const sameDomain = otherArticles.filter(a => a.domain === article.domain).length;
+    const sameAngle = otherArticles.filter(a => a.angle === article.angle).length;
+    
+    // Prefer articles from different domains and angles
+    // Higher distinctness = more unique perspective
+    let distinctness = 1.0;
+    
+    // Penalize if same domain already appears (want diverse sources)
+    if (sameDomain > 0) distinctness -= 0.4;
+    
+    // Penalize if too many articles from same angle/category
+    // But allow some from same angle if they're from different sources
+    if (sameAngle > 3) distinctness -= 0.3;
+    else if (sameAngle > 1 && sameDomain === 0) distinctness -= 0.1; // Different source, same angle is OK
+    
+    // Boost distinctness for fact-check sources (valuable perspective)
+    if (article.angle === 'Fact-checks') distinctness += 0.2;
+    
+    // Boost distinctness for international sources (different perspective)
+    if (article.angle === 'International') distinctness += 0.15;
+    
+    return Math.max(0.1, Math.min(1.0, distinctness));
+  }
+
+  /**
+   * Rank articles by relevance and distinctness
+   */
+  function rankArticles(articles, topic) {
+    const ranked = articles.map(article => {
+      const relevance = calculateRelevance(article, topic);
+      const distinctness = calculateDistinctness(article, articles.filter(a => a !== article));
+      
+      // Combined score: 60% relevance, 40% distinctness
+      const score = (relevance * 0.6) + (distinctness * 0.4);
+      
+      return {
+        ...article,
+        relevance,
+        distinctness,
+        score
+      };
+    });
+
+    // Sort by score (highest first)
+    ranked.sort((a, b) => b.score - a.score);
+    
+    return ranked;
+  }
+
   // ============================================================================
   // Smart Bubbles Manager
   // ============================================================================
@@ -424,7 +569,12 @@
     }
 
     async init() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (this.settings.smartBubbles && !this.settings.quietMode) {
@@ -658,7 +808,12 @@
     }
 
     async updateSettings() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (this.settings.smartBubbles && !this.settings.quietMode) {
@@ -681,7 +836,12 @@
     }
 
     async init() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (this.settings.selectionToolbar) {
@@ -810,16 +970,25 @@
           title: document.title
         };
         
-        const response = await chrome.runtime.sendMessage({ 
-          type: 'TRULENS_GET_HIGHLIGHTS' 
-        });
+        let response;
+        try {
+          response = await chrome.runtime.sendMessage({ 
+            type: 'TRULENS_GET_HIGHLIGHTS' 
+          });
+        } catch (e) {
+          response = { data: null };
+        }
         const highlights = response.data || [];
         highlights.unshift(excerpt);
         
-        await chrome.runtime.sendMessage({
-          type: 'TRULENS_SET_HIGHLIGHTS',
-          highlights: highlights.slice(0, 100) // Keep last 100
-        });
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'TRULENS_SET_HIGHLIGHTS',
+            highlights: highlights.slice(0, 100) // Keep last 100
+          });
+        } catch (e) {
+          // Extension context invalidated - continue silently
+        }
 
         this.hideToolbar();
       }
@@ -832,7 +1001,12 @@
     }
 
     async updateSettings() {
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_SETTINGS' });
+      } catch (e) {
+        response = { data: null };
+      }
       this.settings = response.data || this.settings;
       
       if (!this.settings.selectionToolbar) {
@@ -861,7 +1035,8 @@
       if (panelEl) {
         panelEl.classList.add('open');
         this.isOpen = true;
-        this.updateOverview();
+        // Default to References tab
+        this.updateReferences();
       }
     },
 
@@ -878,8 +1053,31 @@
       if (!overviewEl) return;
 
       // Get latest scan or scan now
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_LATEST' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_LATEST' });
+      } catch (e) {
+        response = { data: null };
+      }
       let decision = response.data;
+
+      // ---- SAFETY NORMALIZATION PATCH ----
+      if (!decision || typeof decision !== 'object') {
+        decision = {};
+      }
+      if (!decision.label || typeof decision.label !== 'string') {
+        decision.label = 'Unknown';
+      }
+      if (!decision.confidence) {
+        decision.confidence = 'tentative';
+      }
+      if (!Array.isArray(decision.reasons)) {
+        decision.reasons = ['No analysis available'];
+      }
+      if (typeof decision.score !== 'number') {
+        decision.score = 0;
+      }
+      // ---- END PATCH ----
 
       if (!decision || decision.url !== window.location.href) {
         // Scan now
@@ -887,29 +1085,39 @@
         decision = await pageDecision(blocks);
         
         // Save
-        await chrome.runtime.sendMessage({
-          type: 'TRULENS_SAVE',
-          payload: {
-            url: window.location.href,
-            ts: Date.now(),
-            overall: decision.label,
-            reasons: decision.reasons,
-            confidence: decision.confidence,
-            score: decision.score
-          }
-        });
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'TRULENS_SAVE',
+            payload: {
+              url: window.location.href,
+              ts: Date.now(),
+              overall: decision.label,
+              reasons: decision.reasons,
+              confidence: decision.confidence,
+              score: decision.score
+            }
+          });
+        } catch (e) {
+          // Extension context invalidated - continue silently
+        }
       }
 
+      // Safe labelClass computation
+      const safeLabel = typeof decision.label === 'string' ? decision.label : 'Unknown';
+      const labelClass =
+        safeLabel.includes('AI') ? 'ai' :
+        safeLabel.includes('Mixed') ? 'mixed' :
+        'human';
+
+      // Render overview
       overviewEl.innerHTML = `
         <div class="trulens-overview-label">${decision.label}</div>
         <div class="trulens-overview-confidence">confidence: ${decision.confidence}</div>
         <ul class="trulens-reasons">
-          ${decision.reasons.map(r => `<li>${r}</li>`).join('')}
+          ${(decision.reasons || []).map(r => `<li>${r}</li>`).join('')}
         </ul>
         <button class="trulens-show-details">Show details</button>
-        <div class="trulens-details">
-          Score: ${Math.round(decision.score)}/100
-        </div>
+        <div class="trulens-details">Score: ${Math.round(decision.score)}/100</div>
       `;
 
       overviewEl.querySelector('.trulens-show-details').addEventListener('click', (e) => {
@@ -923,69 +1131,372 @@
       if (badge) {
         const chip = badge.querySelector('.trulens-badge-chip');
         chip.textContent = decision.label;
-        const labelClass = decision.label.includes('AI') ? 'ai' : decision.label.includes('Mixed') ? 'mixed' : 'human';
         chip.className = `trulens-badge-chip ${labelClass}`;
         badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${decision.confidence}`;
       }
     },
 
-    async updateSources() {
-      const sourcesEl = document.getElementById('trulens-sources');
-      if (!sourcesEl) return;
+    async updateReferences() {
+      const referencesEl = document.getElementById('trulens-references');
+      if (!referencesEl) return;
+
+      referencesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading references...</div>';
 
       const blocks = visibleParagraphs();
       const text = blocks.map(b => b.textContent).join(' ').trim();
       const topic = topTopic(text);
       const links = await buildPerspectiveLinks(topic);
 
-      // Group by category
-      const grouped = {};
-      for (const link of links) {
-        if (!grouped[link.group]) {
-          grouped[link.group] = [];
-        }
-        grouped[link.group].push(link);
+      // Fetch article data with excerpts
+      const articles = await fetchArticleData(topic, links);
+      
+      // Rank articles by relevance and distinctness
+      const rankedArticles = rankArticles(articles, topic);
+
+      // Determine reliability for each article (placeholder logic - replace with actual reliability scoring)
+      const getReliability = (article, index) => {
+        // Placeholder: alternate between reliable, less-reliable, not-reliable for demo
+        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
+        return reliabilities[index % 3];
+      };
+
+      const getReliabilityIcon = (reliability) => {
+        const icons = {
+          'reliable': chrome.runtime.getURL('assets/lets-icons_check-fill.svg'),
+          'less-reliable': chrome.runtime.getURL('assets/icon-park-solid_caution.svg'),
+          'not-reliable': chrome.runtime.getURL('assets/solar_danger-bold.svg')
+        };
+        return icons[reliability] || '';
+      };
+
+      // Generate talking points (placeholder - replace with actual analysis)
+      const talkingPoints = [
+        { percentage: 46, text: 'Documented history with Epstein' },
+        { percentage: 22, text: 'Redactions' },
+        { percentage: 13, text: 'Ongoing lawsuits' },
+        { percentage: 19, text: 'Activity on social media, other topic, other topic, other topic, other topic...', hasMore: true }
+      ];
+
+      // Render new References Overview UI
+      if (rankedArticles.length === 0) {
+        referencesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No references found.</div>';
+        return;
       }
 
-      sourcesEl.innerHTML = Object.entries(grouped).map(([group, groupLinks]) => `
-        <div class="trulens-source-group">
-          <div class="trulens-source-group-title">${group}</div>
-          <div class="trulens-source-links">
-            ${groupLinks.map(link => `
-              <a href="${link.url}" target="_blank" rel="noopener" class="trulens-source-link">
-                ${link.domain}
-              </a>
-            `).join('')}
+      referencesEl.innerHTML = `
+        <div class="sources-overview">
+          <!-- Filter Section -->
+
+          <!-- Main Content -->
+          <div class="main-content">
+            <!-- Warning Box -->
+            <div class="warning-box">
+              <div class="warning-box-header">
+                <img src="${chrome.runtime.getURL('assets/icon-park-solid_caution.svg')}" alt="Caution" class="warning-icon">
+                <span class="warning-label">Less Reliable</span>
+              </div>
+              <p class="warning-text">While the facts are largely consistent with other sources, based on previous instances and reasons, reasons, there may be sway.</p>
+            </div>
+
+            <!-- Talking Point Breakdown -->
+            <div class="talking-points-section">
+              <div class="section-header">
+                <h2 class="section-title">Talking point breakdown</h2>
+                <p class="section-subtitle">Click into them to explore topics further.</p>
+              </div>
+              <div class="talking-points-list">
+                ${talkingPoints.map((point, index) => {
+                  if (point.hasMore) {
+                    return `
+                      <div class="talking-point-item-row">
+                        <span class="talking-point-item-row-text">${point.percentage}% - ${escapeHtml(point.text)}</span>
+                        <button class="more-button" data-point-index="${index}">+ More</button>
+                      </div>
+                    `;
+                  } else {
+                    return `
+                      <div class="talking-point-item">
+                        <span class="talking-point-text">${point.percentage}% - ${escapeHtml(point.text)}</span>
+                      </div>
+                    `;
+                  }
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- Other Angles Section -->
+            <div class="other-angles-section">
+              <div class="section-header-row">
+                <h2 class="section-title">Other angles on this topic</h2>
+                <button class="filter-icon-button" aria-label="Filter">
+                  <img src="${chrome.runtime.getURL('assets/mdi_filter.svg')}" alt="Filter" class="filter-icon">
+                </button>
+              </div>
+              <div class="source-cards-list">
+                ${rankedArticles.slice(0, 3).map((article, index) => {
+                  const reliability = getReliability(article, index);
+                  const reliabilityLabels = {
+                    'reliable': 'Reliable',
+                    'less-reliable': 'Less Reliable',
+                    'not-reliable': 'Not Reliable'
+                  };
+                  const reliabilityIcon = getReliabilityIcon(reliability);
+                  
+                  // Extract domain for publisher avatar color
+                  const domain = article.domain || article.source || '';
+                  const avatarColor = '#e02424'; // Default, could be customized per domain
+                  
+                  return `
+                    <div class="source-card" data-reliability="${reliability}">
+                      <p class="source-quote">${escapeHtml(article.excerpt || 'No excerpt available.')}</p>
+                      <div class="source-meta">
+                        <div class="source-title-row">
+                          <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title || article.source)}</a>
+                        </div>
+                        <div class="source-footer">
+                          <div class="source-publisher">
+                            <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
+                            <span class="publisher-name">${escapeHtml(article.source || domain)}</span>
+                          </div>
+                          <div class="reliability-badge ${reliability}">
+                            <div>
+                              ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
+                              <span>${reliabilityLabels[reliability]}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
           </div>
         </div>
-      `).join('');
+      `;
+
+      // Setup interactivity
+      setupSourcesInteractivity(referencesEl, talkingPoints);
+    },
+
+    async updateSummary() {
+      const summaryEl = document.getElementById('trulens-summary');
+      if (!summaryEl) return;
+      
+      // Summary tab content - to be implemented
+      summaryEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--secondary-content, #797979);">Summary content coming soon.</div>';
+    },
+
+    async updateHowToUse() {
+      const howToUseEl = document.getElementById('trulens-how-to-use');
+      if (!howToUseEl) return;
+      
+      // How to Use tab content
+      howToUseEl.innerHTML = `
+        <div class="how-to-use-container">
+          <div class="how-to-use-content">
+            <!-- Section 1: Scan any article -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">Scan any article</h3>
+              <p class="how-to-use-description">Load the extension when you're reading through any sources that you want to fact-check or understand more deeply.</p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/scan-article-image.png')}" alt="Scan any article example" class="how-to-use-image">
+              </div>
+            </div>
+
+            <!-- Section 2: View trusted references -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">View trusted references</h3>
+              <p class="how-to-use-description">Trulens immediately surfaces credible sources related to the content so you can validate claims and explore additional context.</p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/view-references-image.png')}" alt="View trusted references example" class="how-to-use-image">
+              </div>
+            </div>
+
+            <!-- Section 3: Highlight to reveal biases -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">Highlight to reveal biases</h3>
+              <p class="how-to-use-description">Select any sentence or passage to see:
+                <ul class="how-to-use-list">
+                  <li>Potential biases</li>
+                  <li>Supporting or contradicting articles from across the web</li>
+                  <li>Key claims and how they compare to other sources</li>
+                </ul>
+              </p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/highlight-biases-image.png')}" alt="Highlight to reveal biases example" class="how-to-use-image">
+              </div>
+            </div>
+
+            <!-- Section 4: Get a quick summary -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">Get a quick summary</h3>
+              <p class="how-to-use-description">Open the Summary tab for a concise, 4-minute brief of the article—including any funding sources or donors (when available) that may influence the narrative.</p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/get-summary-image.png')}" alt="Get a quick summary example" class="how-to-use-image">
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     },
 
     async updateHighlights() {
       const highlightsEl = document.getElementById('trulens-highlights');
       if (!highlightsEl) return;
 
-      const response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+      } catch (e) {
+        response = { data: null };
+      }
       const highlights = response.data || [];
 
+      // Get reliability for each highlight (placeholder logic - replace with actual reliability scoring)
+      const getReliability = (highlight, index) => {
+        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
+        return reliabilities[index % 3];
+      };
+
+      const getReliabilityIcon = (reliability) => {
+        const icons = {
+          'reliable': chrome.runtime.getURL('assets/lets-icons_check-fill.svg'),
+          'less-reliable': chrome.runtime.getURL('assets/icon-park-solid_caution.svg'),
+          'not-reliable': chrome.runtime.getURL('assets/solar_danger-bold.svg')
+        };
+        return icons[reliability] || '';
+      };
+
       if (highlights.length === 0) {
-        highlightsEl.innerHTML = '<p style="color: var(--text-muted);">No highlights saved yet.</p>';
+        highlightsEl.innerHTML = '<p style="color: var(--secondary-content, #797979); padding: 16px;">No highlights saved yet.</p>';
         return;
       }
 
-      highlightsEl.innerHTML = highlights.map(h => `
-        <div style="padding: 12px; background: var(--bg-primary); border-radius: var(--radius-card); margin-bottom: 12px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
-            ${new Date(h.timestamp).toLocaleString()}
+      highlightsEl.innerHTML = `
+        <div class="highlights-container">
+          <div class="highlights-header-section">
+            <div class="highlights-header-row">
+              <p class="highlights-breadcrumb">&lt; Sources / Documented history with</p>
+              <button class="filter-icon-button" aria-label="Filter">
+                <img src="${chrome.runtime.getURL('assets/mdi_filter.svg')}" alt="Filter" class="filter-icon">
+              </button>
+            </div>
           </div>
-          <div style="font-size: 13px; margin-bottom: 8px;">${h.text}</div>
-          <a href="${h.url}" target="_blank" rel="noopener" style="font-size: 11px; color: var(--accent);">
-            ${h.title || h.url}
-          </a>
+          <div class="highlights-cards-list">
+            ${highlights.map((highlight, index) => {
+              const reliability = getReliability(highlight, index);
+              const reliabilityLabels = {
+                'reliable': 'Reliable',
+                'less-reliable': 'Less Reliable',
+                'not-reliable': 'Not Reliable'
+              };
+              const reliabilityIcon = getReliabilityIcon(reliability);
+              
+              // Extract domain for publisher avatar color
+              const url = highlight.url || '';
+              const domain = url ? new URL(url).hostname.replace('www.', '') : '';
+              const avatarColor = '#e02424'; // Default, could be customized per domain
+              
+              // Use highlight text as quote, or excerpt if available
+              const quote = highlight.text || highlight.excerpt || 'No excerpt available.';
+              const title = highlight.title || domain || 'Untitled';
+              
+              return `
+                <div class="source-card" data-reliability="${reliability}">
+                  <p class="source-quote">${escapeHtml(quote)}</p>
+                  <div class="source-meta">
+                    <div class="source-title-row">
+                      <a href="${highlight.url || '#'}" target="_blank" rel="noopener" class="source-title">${escapeHtml(title)}</a>
+                    </div>
+                    <div class="source-footer">
+                      <div class="source-publisher">
+                        <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
+                        <span class="publisher-name">${escapeHtml(domain || 'Unknown')}</span>
+                      </div>
+                      <div class="reliability-badge ${reliability}">
+                        <div>
+                          ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
+                          <span>${reliabilityLabels[reliability]}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
-      `).join('');
+      `;
+
+      // Setup interactivity for filter button
+      const filterButton = highlightsEl.querySelector('.filter-icon-button');
+      if (filterButton) {
+        filterButton.addEventListener('click', () => {
+          console.log('Filter button clicked in highlights');
+        });
+      }
     }
   };
+
+  // Helper function to escape HTML
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Setup Sources Overview interactivity
+  function setupSourcesInteractivity(sourcesEl, talkingPoints) {
+    // Talking point click handlers
+    const talkingPointItems = sourcesEl.querySelectorAll('.talking-point-item, .talking-point-item-row');
+    talkingPointItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.classList.contains('more-button')) {
+          return;
+        }
+        const text = item.querySelector('.talking-point-text, .talking-point-item-row-text')?.textContent;
+        if (text) {
+          console.log('Talking point clicked:', text);
+        }
+      });
+    });
+
+    // "More" button handlers
+    const moreButtons = sourcesEl.querySelectorAll('.more-button');
+    moreButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = parseInt(button.dataset.pointIndex);
+        const point = talkingPoints[index];
+        if (point) {
+          console.log('Expanding:', point);
+        }
+      });
+    });
+
+    // Source card click handlers
+    const sourceCards = sourcesEl.querySelectorAll('.source-card');
+    sourceCards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.tagName === 'A') {
+          return;
+        }
+        const title = card.querySelector('.source-title')?.textContent;
+        if (title) {
+          console.log('Source card clicked:', title);
+        }
+      });
+    });
+
+    // Filter button handler
+    const filterButton = sourcesEl.querySelector('.filter-icon-button');
+    if (filterButton) {
+      filterButton.addEventListener('click', () => {
+        console.log('Filter button clicked');
+      });
+    }
+  }
 
   // ============================================================================
   // Highlights Toggle
@@ -1017,26 +1528,52 @@
 
       currentAnalysis = await pageDecision(blocks);
       
-      await chrome.runtime.sendMessage({
-        type: 'TRULENS_SAVE',
-        payload: {
-          url: window.location.href,
-          ts: Date.now(),
-          overall: currentAnalysis.label,
-          reasons: currentAnalysis.reasons,
-          confidence: currentAnalysis.confidence,
-          score: currentAnalysis.score
-        }
-      });
+      if (!currentAnalysis || typeof currentAnalysis !== 'object') {
+        currentAnalysis = {
+          label: 'Unknown',
+          confidence: 'tentative',
+          reasons: ['No readable content'],
+          score: 0
+        };
+      }
+
+      // Guarantee label exists
+      if (!currentAnalysis.label || typeof currentAnalysis.label !== 'string') {
+        currentAnalysis.label = 'Unknown';
+      }
+      
+      try {
+        await chrome.runtime.sendMessage({
+          type: 'TRULENS_SAVE',
+          payload: {
+            url: window.location.href,
+            ts: Date.now(),
+            overall: currentAnalysis.label,
+            reasons: currentAnalysis.reasons,
+            confidence: currentAnalysis.confidence,
+            score: currentAnalysis.score
+          }
+        });
+      } catch (error) {
+        // Extension context invalidated or other runtime errors - continue silently
+      }
 
       // Update badge if visible
       const badge = document.getElementById('trulens-badge');
       if (badge) {
         const chip = badge.querySelector('.trulens-badge-chip');
-        chip.textContent = currentAnalysis.label;
-        const labelClass = currentAnalysis.label.includes('AI') ? 'ai' : currentAnalysis.label.includes('Mixed') ? 'mixed' : 'human';
+        const safeLabel = typeof currentAnalysis.label === 'string'
+          ? currentAnalysis.label
+          : 'Unknown';
+
+        chip.textContent = safeLabel;
+
+        const labelClass =
+          safeLabel.includes('AI') ? 'ai' :
+          safeLabel.includes('Mixed') ? 'mixed' :
+          'human';
         chip.className = `trulens-badge-chip ${labelClass}`;
-        badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${currentAnalysis.confidence}`;
+        badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${currentAnalysis.confidence || 'tentative'}`;
       }
     }, 300);
   }
@@ -1103,6 +1640,8 @@
         if (settings.quietMode) {
           panel.hide();
         }
+      }).catch(e => {
+        // Extension context invalidated - continue silently
       });
     }
 
@@ -1111,7 +1650,7 @@
     }
 
     if (message.type === 'TRULENS_REQUEST_PERSPECTIVE') {
-      panel.updateSources();
+      panel.updateReferences();
     }
 
     if (message.type === 'TRULENS_OPEN_PANEL') {
@@ -1127,22 +1666,50 @@
           settings: { ...settings, highlights: newValue }
         }).then(() => {
           toggleHighlights(newValue);
+        }).catch(e => {
+          // Extension context invalidated - continue silently
         });
+      }).catch(e => {
+        // Extension context invalidated - continue silently
       });
     }
   });
 
-  // Panel tab listeners
+  // Panel tab listeners (legacy - using new tab-button class now)
   document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('trulens-panel-tab')) {
+    if (e.target.classList.contains('tab-button')) {
       const tabName = e.target.dataset.tab;
-      if (tabName === 'sources') {
-        panel.updateSources();
-      } else if (tabName === 'highlights') {
-        panel.updateHighlights();
+      if (tabName === 'references') {
+        panel.updateReferences();
+      } else if (tabName === 'summary') {
+        panel.updateSummary();
+      } else if (tabName === 'how-to-use') {
+        panel.updateHowToUse();
       }
     }
   });
+
+  // ============================================================================
+  // Margin Bubble API (for testing and future use)
+  // ============================================================================
+
+  // Expose MarginBubbleManager API to content script scope
+  const { createMarginBubble, removeMarginBubble, clearAllMarginBubbles } = 
+    window.MarginBubbleManager || {};
+
+  // Test function: Add a bubble to the first paragraph
+  function testMarginBubble() {
+    const firstP = document.querySelector('p');
+    if (firstP && createMarginBubble) {
+      createMarginBubble({
+        anchorNode: firstP,
+        message: "What assumptions is the author making here?"
+      });
+    }
+  }
+
+  // Uncomment the line below to test margin bubbles on page load
+  // setTimeout(testMarginBubble, 1000);
 
 })();
 
