@@ -1291,8 +1291,54 @@
       const howToUseEl = document.getElementById('trulens-how-to-use');
       if (!howToUseEl) return;
       
-      // How to Use tab content - to be implemented
-      howToUseEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--secondary-content, #797979);">How to Use content coming soon.</div>';
+      // How to Use tab content
+      howToUseEl.innerHTML = `
+        <div class="how-to-use-container">
+          <div class="how-to-use-content">
+            <!-- Section 1: Scan any article -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">Scan any article</h3>
+              <p class="how-to-use-description">Load the extension when you're reading through any sources that you want to fact-check or understand more deeply.</p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/scan-article-image.png')}" alt="Scan any article example" class="how-to-use-image">
+              </div>
+            </div>
+
+            <!-- Section 2: View trusted references -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">View trusted references</h3>
+              <p class="how-to-use-description">Trulens immediately surfaces credible sources related to the content so you can validate claims and explore additional context.</p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/view-references-image.png')}" alt="View trusted references example" class="how-to-use-image">
+              </div>
+            </div>
+
+            <!-- Section 3: Highlight to reveal biases -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">Highlight to reveal biases</h3>
+              <p class="how-to-use-description">Select any sentence or passage to see:
+                <ul class="how-to-use-list">
+                  <li>Potential biases</li>
+                  <li>Supporting or contradicting articles from across the web</li>
+                  <li>Key claims and how they compare to other sources</li>
+                </ul>
+              </p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/highlight-biases-image.png')}" alt="Highlight to reveal biases example" class="how-to-use-image">
+              </div>
+            </div>
+
+            <!-- Section 4: Get a quick summary -->
+            <div class="how-to-use-section">
+              <h3 class="how-to-use-heading">Get a quick summary</h3>
+              <p class="how-to-use-description">Open the Summary tab for a concise, 4-minute brief of the article—including any funding sources or donors (when available) that may influence the narrative.</p>
+              <div class="how-to-use-image-container">
+                <img src="${chrome.runtime.getURL('images/get-summary-image.png')}" alt="Get a quick summary example" class="how-to-use-image">
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     },
 
     async updateHighlights() {
