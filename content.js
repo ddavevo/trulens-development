@@ -75,12 +75,14 @@
             <button class="filter-button-top">Trulens</button>
           </div>
           <div class="tab-navigation">
-            <button class="tab-button active" data-tab="sources">Sources</button>
-            <button class="tab-button" data-tab="highlights">My Highlights</button>
+            <button class="tab-button active" data-tab="references">References</button>
+            <button class="tab-button" data-tab="summary">Summary</button>
+            <button class="tab-button" data-tab="how-to-use">How to Use</button>
           </div>
           <div class="trulens-panel-content">
-            <div class="trulens-panel-section active" id="trulens-sources"></div>
-            <div class="trulens-panel-section" id="trulens-highlights"></div>
+            <div class="trulens-panel-section active" id="trulens-references"></div>
+            <div class="trulens-panel-section" id="trulens-summary"></div>
+            <div class="trulens-panel-section" id="trulens-how-to-use"></div>
           </div>
         </div>
       `;
@@ -96,10 +98,12 @@
           document.getElementById(`trulens-${tabName}`).classList.add('active');
           
           // Update content when switching tabs
-          if (tabName === 'sources') {
-            panel.updateSources();
-          } else if (tabName === 'highlights') {
-            panel.updateHighlights();
+          if (tabName === 'references') {
+            panel.updateReferences();
+          } else if (tabName === 'summary') {
+            panel.updateSummary();
+          } else if (tabName === 'how-to-use') {
+            panel.updateHowToUse();
           }
         });
         tab.addEventListener('keydown', (e) => {
@@ -1031,8 +1035,8 @@
       if (panelEl) {
         panelEl.classList.add('open');
         this.isOpen = true;
-        // Default to Sources tab
-        this.updateSources();
+        // Default to References tab
+        this.updateReferences();
       }
     },
 
@@ -1132,11 +1136,11 @@
       }
     },
 
-    async updateSources() {
-      const sourcesEl = document.getElementById('trulens-sources');
-      if (!sourcesEl) return;
+    async updateReferences() {
+      const referencesEl = document.getElementById('trulens-references');
+      if (!referencesEl) return;
 
-      sourcesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading sources...</div>';
+      referencesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading references...</div>';
 
       const blocks = visibleParagraphs();
       const text = blocks.map(b => b.textContent).join(' ').trim();
@@ -1173,13 +1177,13 @@
         { percentage: 19, text: 'Activity on social media, other topic, other topic, other topic, other topic...', hasMore: true }
       ];
 
-      // Render new Sources Overview UI
+      // Render new References Overview UI
       if (rankedArticles.length === 0) {
-        sourcesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No sources found.</div>';
+        referencesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No references found.</div>';
         return;
       }
 
-      sourcesEl.innerHTML = `
+      referencesEl.innerHTML = `
         <div class="sources-overview">
           <!-- Filter Section -->
 
@@ -1272,7 +1276,23 @@
       `;
 
       // Setup interactivity
-      setupSourcesInteractivity(sourcesEl, talkingPoints);
+      setupSourcesInteractivity(referencesEl, talkingPoints);
+    },
+
+    async updateSummary() {
+      const summaryEl = document.getElementById('trulens-summary');
+      if (!summaryEl) return;
+      
+      // Summary tab content - to be implemented
+      summaryEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--secondary-content, #797979);">Summary content coming soon.</div>';
+    },
+
+    async updateHowToUse() {
+      const howToUseEl = document.getElementById('trulens-how-to-use');
+      if (!howToUseEl) return;
+      
+      // How to Use tab content - to be implemented
+      howToUseEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--secondary-content, #797979);">How to Use content coming soon.</div>';
     },
 
     async updateHighlights() {
@@ -1584,7 +1604,7 @@
     }
 
     if (message.type === 'TRULENS_REQUEST_PERSPECTIVE') {
-      panel.updateSources();
+      panel.updateReferences();
     }
 
     if (message.type === 'TRULENS_OPEN_PANEL') {
@@ -1609,14 +1629,16 @@
     }
   });
 
-  // Panel tab listeners
+  // Panel tab listeners (legacy - using new tab-button class now)
   document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('trulens-panel-tab')) {
+    if (e.target.classList.contains('tab-button')) {
       const tabName = e.target.dataset.tab;
-      if (tabName === 'sources') {
-        panel.updateSources();
-      } else if (tabName === 'highlights') {
-        panel.updateHighlights();
+      if (tabName === 'references') {
+        panel.updateReferences();
+      } else if (tabName === 'summary') {
+        panel.updateSummary();
+      } else if (tabName === 'how-to-use') {
+        panel.updateHowToUse();
       }
     }
   });

@@ -132,34 +132,37 @@
 }
 
 .filter-button-top {
-  padding: 8px 12px;
+  padding: var(--spacing-lg, 8px) var(--spacing-xl, 12px);
   background: none;
   border: none;
   color: var(--secondary-content, #797979);
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   font-weight: normal;
-  cursor: pointer;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  transition: color 0.2s;
   line-height: normal;
+  cursor: pointer;
+  transition: color 0.2s;
 }
 
 .filter-button-top:hover {
   color: var(--primary-content, #505050);
 }
 
-/* Tab Navigation - Two Tabs Only */
+/* Tab Navigation - Three Tabs */
 .tab-navigation {
   display: flex;
   width: 100%;
   height: 31px;
-  border-top: 0.5px solid var(--secondary-content, #797979);
-  border-bottom: 0.5px solid var(--secondary-content, #797979);
+  border-top: 0.5px solid var(--border-color, #797979);
+  border-bottom: 0.5px solid var(--border-color, #797979);
   border-left: 0;
   border-right: 0;
+  box-sizing: border-box;
+  gap: 0;
 }
 
 .tab-button {
+  /* Body 12px Regular text style */
   padding: 8px 12px;
   background: none;
   border: none;
@@ -170,16 +173,18 @@
   color: var(--secondary-content, #797979);
   font-size: 12px;
   font-weight: normal;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: normal;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 31px;
   position: relative;
-  line-height: normal;
-  gap: 10px;
+  gap: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .tab-button.active {
@@ -197,6 +202,11 @@
 }
 
 .tab-button:focus {
+  outline: 2px solid var(--primary-content, #505050);
+  outline-offset: -2px;
+}
+
+.tab-button:focus-visible {
   outline: 2px solid var(--primary-content, #505050);
   outline-offset: -2px;
 }
@@ -296,10 +306,13 @@
   --filter-bg: #efefef;
   
   /* Typography - Font Sizes */
-  --font-size-xs: 10px;    /* Labels, badges, publisher names */
-  --font-size-sm: 12px;    /* Body text, buttons, tabs, section titles */
-  --font-size-md: 14px;    /* (Available for future use) */
-  --font-size-lg: 16px;    /* Source card quotes (bold) */
+  --font-size-xs: 10px;    /* Labels */
+  --font-size-sm: 12px;    /* Body regular */
+  --font-size-md: 14px;    /* Subheading */
+  --font-size-lg: 16px;    /* Body large */
+  
+  /* Typography - Official Text Styles from Figma */
+  /* Note: CSS variables can't store complete font declarations, so we use classes */
   
   /* Spacing Scale */
   --spacing-xs: 2px;       /* Minimal gap */
@@ -368,19 +381,20 @@
 }
 
 .warning-label {
-  font-size: 10px;
+  font-size: var(--font-size-xs, 10px);
   font-weight: normal;
   color: #836c08;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: normal;
 }
 
 .warning-text {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   line-height: normal;
   color: #836c08;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   white-space: pre-wrap;
-  width: 303px;
+  width: var(--inner-content-width, 303px);
   min-width: 0;
 }
 
@@ -405,17 +419,20 @@
 }
 
 .section-title {
-  font-size: 12px;
+  font-size: var(--font-size-sm, 12px);
   font-weight: normal;
   color: var(--secondary-content, #797979);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: normal;
   white-space: pre-wrap;
 }
 
 .section-subtitle {
-  font-size: 10px;
+  font-size: var(--font-size-xs, 10px);
+  font-weight: normal;
   color: var(--secondary-content, #797979);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: normal;
   white-space: pre-wrap;
 }
 
@@ -473,7 +490,9 @@
 }
 
 .talking-point-text {
+  /* Body 12px Regular text style */
   font-size: 12px;
+  font-weight: normal;
   color: var(--primary-content, #505050);
   line-height: normal;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -498,7 +517,9 @@
 }
 
 .talking-point-item-row-text {
+  /* Body 12px Regular text style */
   font-size: 12px;
+  font-weight: normal;
   color: var(--primary-content, #505050);
   flex: 1 0 0;
   line-height: normal;
@@ -510,18 +531,21 @@
 }
 
 .more-button {
+  /* Label 10px Underline text style */
   padding: 4px 8px;
   background: none;
   border: none;
   border-radius: 16px;
   color: var(--primary-content, #505050);
   font-size: 10px;
+  font-weight: normal;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   text-decoration: underline;
   text-underline-position: from-font;
+  line-height: normal;
   cursor: pointer;
   white-space: nowrap;
   transition: background-color 0.2s ease;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   flex-shrink: 0;
   width: 50px;
   height: 20px;
@@ -619,8 +643,9 @@
 }
 
 .source-quote {
+  /* Body 16px Large text style */
   font-size: 16px;
-  font-weight: bold;
+  font-weight: normal;
   color: var(--primary-content, #505050);
   line-height: normal;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -649,7 +674,9 @@
 }
 
 .source-title {
+  /* Body 12px Regular text style */
   font-size: 12px;
+  font-weight: normal;
   color: var(--secondary-content, #797979);
   line-height: normal;
   text-decoration: none;
@@ -690,10 +717,12 @@
 }
 
 .publisher-name {
+  /* Label 10px Regular text style */
   font-size: 10px;
-  color: var(--secondary-content, #797979);
   font-weight: normal;
+  color: var(--secondary-content, #797979);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -707,10 +736,12 @@
   flex-direction: column;
   gap: 12px;
   align-items: flex-start;
+  /* Label 10px Regular text style */
   font-size: 10px;
   font-weight: normal;
-  white-space: nowrap;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: normal;
+  white-space: nowrap;
 }
 
 .reliability-badge > div {

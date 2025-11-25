@@ -3,10 +3,26 @@
 ## Typography Scale
 Based on Figma design analysis, here are the standardized font sizes:
 
-- **10px** - Small labels, badges, publisher names, breadcrumbs
-- **12px** - Body text, buttons, tabs, section titles, talking points
-- **14px** - (Not currently used, but available)
-- **16px** - Source card quotes (bold)
+- **10px** - Labels (regular and underline)
+- **12px** - Body regular, tabs, buttons, section titles
+- **14px** - Subheading (bold)
+- **16px** - Body large (source card quotes)
+
+## Official Text Styles (from Figma)
+**Mapped to CSS variables:**
+
+- **Body 16px Large** - `--text-style-body-large` (16px, normal, Inter) - Used for source card quotes
+- **Body 12px Regular** - `--text-style-body-regular` (12px, normal, Inter) - Used for body text, tabs, buttons
+- **Label 10px Regular** - `--text-style-label-regular` (10px, normal, Inter) - Used for labels, badges, publisher names
+- **Label 10px Underline** - `--text-style-label-underline` (10px, normal, Inter, underline) - Used for underlined labels
+- **Subheading 14px Bold** - `--text-style-subheading` (14px, bold, Inter) - Used for subheadings
+
+## Tab Structure
+- **Three tabs**: References | Summary | How to Use
+- **Tab styling**: 
+  - Padding: 8px top/bottom, 12px left/right
+  - Gap: 0
+  - Height: 31px (Hug)
 
 ## Spacing Scale
 Standardized spacing values from auto-layout:
