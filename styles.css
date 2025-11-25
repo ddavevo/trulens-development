@@ -206,6 +206,9 @@
   overflow-y: auto;
   padding: 0;
   background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
 .trulens-panel-section {
