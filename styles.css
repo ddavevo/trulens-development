@@ -216,9 +216,7 @@
 }
 
 .trulens-panel-section.active {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+  display: block;
 }
 
 .trulens-overview-label {
@@ -329,6 +327,14 @@
   display: flex;
   flex-direction: column;
   gap: 32px;
+  align-items: flex-start;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  width: 100%;
   align-items: flex-start;
 }
 
