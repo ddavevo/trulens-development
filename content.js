@@ -39,28 +39,6 @@
    * Aria-safe injection of UI elements
    */
   function injectUI() {
-    // Badge
-    if (!document.getElementById('trulens-badge')) {
-      const badge = document.createElement('div');
-      badge.id = 'trulens-badge';
-      badge.className = 'trulens-badge';
-      badge.setAttribute('role', 'button');
-      badge.setAttribute('aria-label', 'TruLens analysis badge');
-      badge.setAttribute('tabindex', '0');
-      badge.innerHTML = `
-        <span class="trulens-badge-chip">Analyzing...</span>
-        <span class="trulens-badge-sublabel">confidence: steady</span>
-      `;
-      document.body.appendChild(badge);
-      badge.addEventListener('click', () => panel.toggle());
-      badge.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          panel.toggle();
-        }
-      });
-    }
-
     // Panel
     if (!document.getElementById('trulens-panel')) {
       const panelEl = document.createElement('div');
@@ -1126,39 +1104,19 @@
         e.target.textContent = details.classList.contains('visible') ? 'Hide details' : 'Show details';
       });
 
-      // Update badge
-      const badge = document.getElementById('trulens-badge');
-      if (badge) {
-        const chip = badge.querySelector('.trulens-badge-chip');
-        chip.textContent = decision.label;
-        chip.className = `trulens-badge-chip ${labelClass}`;
-        badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${decision.confidence}`;
-      }
     },
 
     async updateReferences() {
       const referencesEl = document.getElementById('trulens-references');
       if (!referencesEl) return;
 
-      referencesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">Loading references...</div>';
-
-      const blocks = visibleParagraphs();
-      const text = blocks.map(b => b.textContent).join(' ').trim();
-      const topic = topTopic(text);
-      const links = await buildPerspectiveLinks(topic);
-
-      // Fetch article data with excerpts
-      const articles = await fetchArticleData(topic, links);
-      
-      // Rank articles by relevance and distinctness
-      const rankedArticles = rankArticles(articles, topic);
-
-      // Determine reliability for each article (placeholder logic - replace with actual reliability scoring)
-      const getReliability = (article, index) => {
-        // Placeholder: alternate between reliable, less-reliable, not-reliable for demo
-        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
-        return reliabilities[index % 3];
-      };
+      // Keep infrastructure functions for future use, but use hardcoded content for now
+      // const blocks = visibleParagraphs();
+      // const text = blocks.map(b => b.textContent).join(' ').trim();
+      // const topic = topTopic(text);
+      // const links = await buildPerspectiveLinks(topic);
+      // const articles = await fetchArticleData(topic, links);
+      // const rankedArticles = rankArticles(articles, topic);
 
       const getReliabilityIcon = (reliability) => {
         const icons = {
@@ -1169,33 +1127,60 @@
         return icons[reliability] || '';
       };
 
-      // Generate talking points (placeholder - replace with actual analysis)
+      // Hardcoded talking points based on the design
       const talkingPoints = [
-        { percentage: 46, text: 'Documented history with Epstein' },
-        { percentage: 22, text: 'Redactions' },
-        { percentage: 13, text: 'Ongoing lawsuits' },
-        { percentage: 19, text: 'Activity on social media, other topic, other topic, other topic, other topic...', hasMore: true }
+        { percentage: 92, text: '42 million people could be affected' },
+        { percentage: 57, text: "USDA's funding decision / partial funding" },
+        { percentage: 57, text: 'Food-banks and states scrambling / emergency measures' },
+        { percentage: null, text: 'Court rulings, states & coalitions suing, Undoing full payments, child hunger, etc.', hasMore: true }
       ];
 
-      // Render new References Overview UI
-      if (rankedArticles.length === 0) {
-        referencesEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-muted);">No references found.</div>';
-        return;
-      }
+      // Hardcoded source articles based on the design
+      const hardcodedArticles = [
+        {
+          excerpt: "This raises concerns about what the future holds for SNAP users. In Florida's Palm Beach and Treasure Coast regions alone, nearly 250,000 individuals depend on SNAP benefits.",
+          title: 'SNAP benefits to continue amid government shutdo...',
+          source: 'WPTV',
+          url: '#',
+          reliability: 'reliable',
+          domain: 'wptv.com'
+        },
+        {
+          excerpt: "It will be the first such disruption to the federally funded but state-administered safety net program that disproportionately feeds women, children, disabled people and the eld...",
+          title: 'SNAP Benefits for 42 Million People Could Still Be S...',
+          source: 'Truthout',
+          url: '#',
+          reliability: 'less-reliable',
+          domain: 'truthout.org'
+        },
+        {
+          excerpt: "the federal shutdown happened because Congress failed to pass funding bills or a continuing resolution to keep federal spending authorized. In the absence of that authorization,...",
+          title: 'Federal Shutdown Starts To Hit Home In Guilford C...',
+          source: 'RHINO Times',
+          url: '#',
+          reliability: 'not-reliable',
+          domain: 'rhinotimes.com'
+        }
+      ];
 
+      const reliabilityLabels = {
+        'reliable': 'Reliable',
+        'less-reliable': 'Less Reliable',
+        'not-reliable': 'Not Reliable'
+      };
+
+      // Render new References Overview UI with hardcoded content
       referencesEl.innerHTML = `
         <div class="sources-overview">
-          <!-- Filter Section -->
-
           <!-- Main Content -->
           <div class="main-content">
-            <!-- Warning Box -->
-            <div class="warning-box">
+            <!-- Warning Box - Reliable -->
+            <div class="warning-box" style="background-color: var(--reliable-bg, #dfffd4); border-color: var(--reliable-content, #216909);">
               <div class="warning-box-header">
-                <img src="${chrome.runtime.getURL('assets/icon-park-solid_caution.svg')}" alt="Caution" class="warning-icon">
-                <span class="warning-label">Less Reliable</span>
+                <img src="${chrome.runtime.getURL('assets/lets-icons_check-fill.svg')}" alt="Reliable" class="warning-icon">
+                <span class="warning-label" style="color: var(--reliable-content, #216909);">Reliable</span>
               </div>
-              <p class="warning-text">While the facts are largely consistent with other sources, based on previous instances and reasons, reasons, there may be sway.</p>
+              <p class="warning-text" style="color: var(--reliable-content, #216909);">This article is factually reliable and matches what national outlets report, but its local focus may introduce a mild emphasis on New Jersey's hardship. Please do your own due diligence regardless.</p>
             </div>
 
             <!-- Talking Point Breakdown -->
@@ -1209,7 +1194,7 @@
                   if (point.hasMore) {
                     return `
                       <div class="talking-point-item-row">
-                        <span class="talking-point-item-row-text">${point.percentage}% - ${escapeHtml(point.text)}</span>
+                        <span class="talking-point-item-row-text">${point.percentage !== null ? point.percentage + '% - ' : ''}${escapeHtml(point.text)}</span>
                         <button class="more-button" data-point-index="${index}">+ More</button>
                       </div>
                     `;
@@ -1233,30 +1218,22 @@
                 </button>
               </div>
               <div class="source-cards-list">
-                ${rankedArticles.slice(0, 3).map((article, index) => {
-                  const reliability = getReliability(article, index);
-                  const reliabilityLabels = {
-                    'reliable': 'Reliable',
-                    'less-reliable': 'Less Reliable',
-                    'not-reliable': 'Not Reliable'
-                  };
+                ${hardcodedArticles.map((article) => {
+                  const reliability = article.reliability;
                   const reliabilityIcon = getReliabilityIcon(reliability);
-                  
-                  // Extract domain for publisher avatar color
-                  const domain = article.domain || article.source || '';
                   const avatarColor = '#e02424'; // Default, could be customized per domain
                   
                   return `
                     <div class="source-card" data-reliability="${reliability}">
-                      <p class="source-quote">${escapeHtml(article.excerpt || 'No excerpt available.')}</p>
+                      <p class="source-quote">${escapeHtml(article.excerpt)}</p>
                       <div class="source-meta">
                         <div class="source-title-row">
-                          <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title || article.source)}</a>
+                          <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title)}</a>
                         </div>
                         <div class="source-footer">
                           <div class="source-publisher">
                             <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
-                            <span class="publisher-name">${escapeHtml(article.source || domain)}</span>
+                            <span class="publisher-name">${escapeHtml(article.source)}</span>
                           </div>
                           <div class="reliability-badge ${reliability}">
                             <div>
@@ -1558,23 +1535,6 @@
         // Extension context invalidated or other runtime errors - continue silently
       }
 
-      // Update badge if visible
-      const badge = document.getElementById('trulens-badge');
-      if (badge) {
-        const chip = badge.querySelector('.trulens-badge-chip');
-        const safeLabel = typeof currentAnalysis.label === 'string'
-          ? currentAnalysis.label
-          : 'Unknown';
-
-        chip.textContent = safeLabel;
-
-        const labelClass =
-          safeLabel.includes('AI') ? 'ai' :
-          safeLabel.includes('Mixed') ? 'mixed' :
-          'human';
-        chip.className = `trulens-badge-chip ${labelClass}`;
-        badge.querySelector('.trulens-badge-sublabel').textContent = `confidence: ${currentAnalysis.confidence || 'tentative'}`;
-      }
     }, 300);
   }
 
@@ -1584,6 +1544,9 @@
   // Initialize managers
   const bubbleManager = new BubbleManager();
   const selectionWatcher = new SelectionWatcher();
+
+  // Auto-open panel when extension loads
+  panel.show();
 
   // Initial scan
   scanPage();

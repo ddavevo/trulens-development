@@ -83,6 +83,8 @@
   flex-direction: column;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .trulens-panel.open {
@@ -119,6 +121,8 @@
   flex-direction: column;
   background: #ffffff;
   overflow: hidden;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 /* Filter Section at Top */
@@ -214,8 +218,16 @@
 .trulens-panel-content {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0;
   background: #ffffff;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.trulens-panel-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .trulens-panel-section {
@@ -223,6 +235,14 @@
   width: 100%;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.trulens-panel-section::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .trulens-panel-section.active {
@@ -341,6 +361,19 @@
   flex-direction: column;
   gap: 32px;
   align-items: flex-start;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Ensure all text wraps properly */
+.sources-overview-container *,
+.highlights-container *,
+.how-to-use-container * {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .main-content {
@@ -363,7 +396,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 327px;
+  width: 100%;
+  max-width: 327px;
   box-sizing: border-box;
 }
 
@@ -497,7 +531,8 @@
   line-height: normal;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   white-space: pre-wrap;
-  width: 303px;
+  width: 100%;
+  max-width: 303px;
 }
 
 .talking-point-item-row {
@@ -575,6 +610,9 @@
   gap: 32px;
   width: 100%;
   align-items: flex-start;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .highlights-header-section {
@@ -619,11 +657,13 @@
   flex-direction: column;
   width: 100%;
   align-items: flex-start;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .how-to-use-content {
   width: 100%;
-  padding: 16px 16px 32px 16px;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -684,9 +724,12 @@
 
 .how-to-use-image {
   max-width: 100%;
+  width: 100%;
   height: auto;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  object-fit: contain;
 }
 
 
@@ -727,7 +770,8 @@
   line-height: normal;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   height: 94px;
-  width: 303px;
+  width: 100%;
+  max-width: 303px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: pre-wrap;
@@ -741,14 +785,16 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 303px;
+  width: 100%;
+  max-width: 303px;
 }
 
 .source-title-row {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 303px;
+  width: 100%;
+  max-width: 303px;
 }
 
 .source-title {
@@ -777,7 +823,8 @@
   align-items: center;
   gap: 20px;
   height: 20px;
-  width: 303px;
+  width: 100%;
+  max-width: 303px;
 }
 
 .source-publisher {
