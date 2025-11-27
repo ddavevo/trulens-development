@@ -1414,29 +1414,68 @@
     async updateHighlights() {
       const highlightsEl = document.getElementById('trulens-my-highlights');
       if (!highlightsEl) {
-        console.log('[Trulens] updateHighlights: Highlights element not found');
         return;
       }
 
-      console.log('[Trulens] updateHighlights: Starting...');
-      let response;
-      try {
-        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
-        console.log('[Trulens] updateHighlights: Response received:', response);
-      } catch (e) {
-        console.error('[Trulens] updateHighlights: Error getting highlights:', e);
-        response = { success: false, data: null };
-      }
-      // Handle response format from background script
-      // Background script returns { success: true, data: [...] }
-      const highlights = (response && response.success && response.data) ? response.data : [];
-      console.log('[Trulens] updateHighlights: Highlights array:', highlights.length, highlights);
+      // Hardcoded highlights data matching the design
+      const highlightsBySource = {
+        'NJ.com': {
+          domain: 'nj.com',
+          highlights: [{
+            title: 'N.J. rushes millions to food banks as 813K residents face empty SNAP accounts',
+            text: 'That means any of the 813,000 New Jerseyans who rely on the program will find their debit accou...',
+            url: window.location.href,
+            reliability: 'reliable',
+            rationale: [
+              'Based on the latest census data, the number of New Jerseyans impacted by SNAP is consistent within ±5%.',
+              'The debit accounts refer to EBT cards used to administer SNAP benefits.'
+            ]
+          },
 
-      // Get reliability for each highlight (placeholder logic - replace with actual reliability scoring)
-      const getReliability = (highlight, index) => {
-        console.log('Highlights retrieved:', highlights.length, highlights);
-        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
-        return reliabilities[index % 3];
+          {
+            title: 'Democrats are fighting to get a deal that would renew the tax credits that help millions of people i...',
+            text: 'Democrats are fighting to get a deal that would renew the tax credits that help millions of people i...',
+            url: window.location.href,
+            reliability: 'less-reliable',
+            rationale: [
+              'Millions of ACA enrollees receive premium reducing tax credits, and these credits were indeed set to lapse without congressional action.',
+              'Federal statements confirm Democrats tied extension of ACA credits to reopening negotiations and that some Republicans refused to negotiate until the government reopened.',
+              'Active political language like "fighting" and "won\'t negotiate" which emphasize conflict.'
+            ]
+          },
+
+          {
+            title: 'In moments like this, we all have a responsibility to step up and do our part to ensure no one goes hun...',
+            text: 'In moments like this, we all have a responsibility to step up and do our part to ensure no one goes hun...',
+            url: window.location.href,
+            reliability: 'reliable',
+            rationale: [
+              'The statement itself is opinion, but Coughlin\'s sponsorship of food insecurity legislation is verifiable based on multiple New Jersey legislative records.',
+              'The quote expresses a value judgment ("responsibility to step up"), and should be read as advocacy framing. His legislative history and involvement in the issue area is accurate.'
+            ]
+          }]
+        },
+    
+        'WPTV': {
+          domain: 'wptv.com',
+          highlights: [{
+            title: 'SNAP benefits to continue amid government shutdown: What you need to know',
+            text: '',
+            url: window.location.href,
+            reliability: 'reliable',
+            rationale: []
+          }]
+        },
+        'Rhino Times': {
+          domain: 'rhinotimes.com',
+          highlights: [{
+            title: 'Federal Shutdown Starts To Hit Home In Guilford County',
+            text: '',
+            url: window.location.href,
+            reliability: 'reliable',
+            rationale: []
+          }]
+        }
       };
 
       const getReliabilityIcon = (reliability) => {
@@ -1447,54 +1486,6 @@
         };
         return icons[reliability] || '';
       };
-
-      if (highlights.length === 0) {
-        highlightsEl.innerHTML = '<p style="color: var(--secondary-content, #797979); padding: 16px;">No highlights saved yet.</p>';
-        return;
-      }
-
-      // Group highlights by source (domain)
-      const highlightsBySource = {};
-      highlights.forEach((highlight, index) => {
-        const url = highlight.url || '';
-        let sourceName = 'Unknown';
-        let domain = '';
-        
-        try {
-          if (url) {
-            domain = new URL(url).hostname.replace('www.', '');
-            // Extract source name (e.g., "nj.com" -> "NJ.com", "wptv.com" -> "WPTV")
-            const parts = domain.split('.');
-            if (parts.length > 0) {
-              const baseName = parts[0];
-              // Capitalize appropriately
-              if (baseName.length <= 4) {
-                sourceName = baseName.toUpperCase();
-              } else {
-                sourceName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-              }
-            } else {
-              sourceName = domain;
-            }
-          }
-        } catch (e) {
-          sourceName = 'Unknown';
-        }
-        
-        if (!highlightsBySource[sourceName]) {
-          highlightsBySource[sourceName] = {
-            domain: domain,
-            highlights: []
-          };
-        }
-        
-        // Add highlight to the beginning of the array for this source (most recent first)
-        highlightsBySource[sourceName].highlights.unshift({
-          ...highlight,
-          index,
-          reliability: getReliability(highlight, index)
-        });
-      });
 
       // Render highlights grouped by source with collapsible headers
       highlightsEl.innerHTML = `
@@ -1532,13 +1523,13 @@
                         'not-reliable': 'Not Reliable'
                       };
                       const reliabilityIcon = getReliabilityIcon(reliability);
-                      const quote = highlight.text || highlight.excerpt || '';
+                      const quote = highlight.text || '';
+                      const rationalePoints = highlight.rationale || [];
                       
-                      // Generate placeholder rationale (replace with actual analysis)
-                      const rationalePoints = [
-                        'Rationale explanation point 1',
-                        'Rationale explanation point 2'
-                      ];
+                      // Only show the expanded card if there's content (quote or rationale)
+                      if (!quote && rationalePoints.length === 0) {
+                        return '';
+                      }
                       
                       return `
                         <div class="highlight-card-expanded" data-reliability="${reliability}">
@@ -1546,12 +1537,14 @@
                             ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
                             <span>${reliabilityLabels[reliability]}</span>
                           </div>
-                          <div class="highlight-quote">${escapeHtml(quote)}</div>
-                          <div class="highlight-rationale">
-                            <ul class="highlight-rationale-list">
-                              ${rationalePoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                            </ul>
-                          </div>
+                          ${quote ? `<div class="highlight-quote">${escapeHtml(quote)}</div>` : ''}
+                          ${rationalePoints.length > 0 ? `
+                            <div class="highlight-rationale">
+                              <ul class="highlight-rationale-list">
+                                ${rationalePoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                              </ul>
+                            </div>
+                          ` : ''}
                           <a href="${highlight.url || '#'}" target="_blank" rel="noopener" class="highlight-explore-link">Explore this topic</a>
                         </div>
                       `;
@@ -1564,38 +1557,52 @@
         </div>
       `;
 
-      // Setup expand/collapse functionality for source headers
-      highlightsEl.querySelectorAll('.highlight-source-header').forEach(header => {
-        header.addEventListener('click', (e) => {
-          // Don't toggle if clicking the chevron button directly
-          if (e.target.closest('.highlight-chevron')) {
-            e.stopPropagation();
-          }
+      // Helper function to toggle expand/collapse
+      const toggleSource = (header) => {
+        const sourceId = header.dataset.sourceHeader;
+        const content = highlightsEl.querySelector(`[data-source-content="${sourceId}"]`);
+        const chevron = header.querySelector('.highlight-chevron svg');
+        
+        if (content) {
+          const isCollapsed = header.classList.contains('collapsed');
           
-          const sourceId = header.dataset.sourceHeader;
-          const content = highlightsEl.querySelector(`[data-source-content="${sourceId}"]`);
-          const chevron = header.querySelector('.highlight-chevron svg');
-          
-          if (content) {
-            const isCollapsed = header.classList.contains('collapsed');
-            
-            if (isCollapsed) {
-              header.classList.remove('collapsed');
-              header.classList.add('expanded');
-              content.style.display = 'flex';
-              if (chevron) {
-                chevron.style.transform = 'rotate(180deg)';
-              }
-            } else {
-              header.classList.remove('expanded');
-              header.classList.add('collapsed');
-              content.style.display = 'none';
-              if (chevron) {
-                chevron.style.transform = 'rotate(0deg)';
-              }
+          if (isCollapsed) {
+            header.classList.remove('collapsed');
+            header.classList.add('expanded');
+            content.style.display = 'flex';
+            if (chevron) {
+              chevron.style.transform = 'rotate(180deg)';
+            }
+          } else {
+            header.classList.remove('expanded');
+            header.classList.add('collapsed');
+            content.style.display = 'none';
+            if (chevron) {
+              chevron.style.transform = 'rotate(0deg)';
             }
           }
+        }
+      };
+
+      // Setup expand/collapse functionality for source headers
+      highlightsEl.querySelectorAll('.highlight-source-header').forEach(header => {
+        // Click on header to toggle
+        header.addEventListener('click', (e) => {
+          // Don't toggle if clicking the chevron button directly (it has its own handler)
+          if (e.target.closest('.highlight-chevron')) {
+            return;
+          }
+          toggleSource(header);
         });
+        
+        // Click on chevron button to toggle
+        const chevronButton = header.querySelector('.highlight-chevron');
+        if (chevronButton) {
+          chevronButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSource(header);
+          });
+        }
         
         // Initialize chevron state
         const chevron = header.querySelector('.highlight-chevron svg');
