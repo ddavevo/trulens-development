@@ -56,11 +56,13 @@
             <button class="tab-button active" data-tab="references">References</button>
             <button class="tab-button" data-tab="summary">Summary</button>
             <button class="tab-button" data-tab="how-to-use">How to Use</button>
+            <button class="tab-button" data-tab="my-highlights">My Highlights</button>
           </div>
           <div class="trulens-panel-content">
             <div class="trulens-panel-section active" id="trulens-references"></div>
             <div class="trulens-panel-section" id="trulens-summary"></div>
             <div class="trulens-panel-section" id="trulens-how-to-use"></div>
+            <div class="trulens-panel-section" id="trulens-my-highlights"></div>
           </div>
         </div>
       `;
@@ -82,6 +84,8 @@
             panel.updateSummary();
           } else if (tabName === 'how-to-use') {
             panel.updateHowToUse();
+          } else if (tabName === 'my-highlights') {
+            panel.updateHighlights();
           }
         });
         tab.addEventListener('keydown', (e) => {
@@ -866,17 +870,49 @@
         document.getElementById('trulens-toolbar-container').appendChild(this.toolbar);
       }
 
-      // Analyze selection
-      const metrics = metricsFor(text);
-      const topic = text.substring(0, 30) + (text.length > 30 ? '...' : '');
-      const angle = metrics.opinion > 0 ? 'Opinion-leaning' : 'Reporting';
+      // Determine reliability (placeholder logic - replace with actual reliability scoring)
+      const getReliability = (text) => {
+        // Simple placeholder: alternate based on text length for demo
+        const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
+        return reliabilities[0]; // text.length % 3
+      };
+
+      const getReliabilityIcon = (reliability) => {
+        const icons = {
+          'reliable': chrome.runtime.getURL('assets/lets-icons_check-fill.svg'),
+          'less-reliable': chrome.runtime.getURL('assets/icon-park-solid_caution.svg'),
+          'not-reliable': chrome.runtime.getURL('assets/solar_danger-bold.svg')
+        };
+        return icons[reliability] || '';
+      };
+
+      const reliability = getReliability(text);
+      const reliabilityLabels = {
+        'reliable': 'Reliable',
+        'less-reliable': 'Less Reliable',
+        'not-reliable': 'Not Reliable'
+      };
+      const reliabilityIcon = getReliabilityIcon(reliability);
+
+      // Generate rationale text (placeholder - replace with actual analysis)
+      const rationaleText = 'Based on the latest census data, the number of New Jerseyans impacted by SNAP is consistent within ±5%. The debit accounts refer to EBT cards used to administer SNAP benefits.';
 
       this.toolbar.innerHTML = `
-        <span class="trulens-toolbar-chip">Topic: ${topic}</span>
-        <span class="trulens-toolbar-chip">Angle: ${angle}</span>
-        <button class="trulens-toolbar-button" data-action="check">Check claim</button>
-        <button class="trulens-toolbar-button" data-action="coverage">Other coverage</button>
-        <button class="trulens-toolbar-button" data-action="save">Save</button>
+        <div class="trulens-toolbar-content">
+          <div class="trulens-toolbar-header">
+            <div class="trulens-toolbar-reliability-badge ${reliability}">
+              ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="toolbar-badge-icon">` : ''}
+              <span>${reliabilityLabels[reliability]}</span>
+            </div>
+          </div>
+          <div class="trulens-toolbar-rationale">
+            ${escapeHtml(rationaleText)}
+          </div>
+          <div class="trulens-toolbar-actions">
+            <button class="trulens-toolbar-save-button" data-action="save">Save highlight</button>
+            <button class="trulens-toolbar-explore-link" data-action="explore">Explore this topic</button>
+          </div>
+        </div>
       `;
 
       // Position above selection
@@ -886,11 +922,12 @@
 
       this.toolbar.style.left = `${Math.max(8, left)}px`;
       this.toolbar.style.top = `${Math.max(8, top)}px`;
-      this.toolbar.style.display = 'flex';
+      this.toolbar.style.display = 'block';
 
       // Action handlers
-      this.toolbar.querySelectorAll('.trulens-toolbar-button').forEach(btn => {
-        btn.addEventListener('click', async () => {
+      this.toolbar.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
           await this.handleAction(btn.dataset.action, text);
         });
         btn.addEventListener('keydown', (e) => {
@@ -931,43 +968,99 @@
     }
 
     async handleAction(action, text) {
-      if (action === 'check') {
-        const query = encodeURIComponent(`"${text.substring(0, 100)}"`);
-        window.open(`https://www.google.com/search?q=${query}`, '_blank');
-      } else if (action === 'coverage') {
-        const topic = topTopic(text);
-        const links = await buildPerspectiveLinks(topic);
-        for (const link of links.slice(0, 5)) {
-          window.open(link.url, '_blank');
-        }
-      } else if (action === 'save') {
+      if (action === 'save') {
+        // Save the exact selected text (no truncation)
         const excerpt = {
-          text: text.substring(0, 500),
+          text: text.trim(),
           url: window.location.href,
           timestamp: Date.now(),
           title: document.title
         };
+        
+        console.log('[Trulens] Saving highlight:', excerpt);
         
         let response;
         try {
           response = await chrome.runtime.sendMessage({ 
             type: 'TRULENS_GET_HIGHLIGHTS' 
           });
+          console.log('[Trulens] Get highlights response:', response);
         } catch (e) {
-          response = { data: null };
+          console.error('[Trulens] Error getting highlights:', e);
+          response = { success: false, data: null };
         }
-        const highlights = response.data || [];
+        
+        // Handle response format from background script
+        const highlights = (response && response.success && response.data) ? response.data : [];
+        console.log('[Trulens] Current highlights count:', highlights.length);
         highlights.unshift(excerpt);
         
         try {
-          await chrome.runtime.sendMessage({
+          const saveResponse = await chrome.runtime.sendMessage({
             type: 'TRULENS_SET_HIGHLIGHTS',
             highlights: highlights.slice(0, 100) // Keep last 100
           });
+          console.log('[Trulens] Save highlights response:', saveResponse);
         } catch (e) {
-          // Extension context invalidated - continue silently
+          console.error('[Trulens] Failed to save highlight:', e);
         }
 
+        // Always update the highlights tab if it exists (whether active or not)
+        // This ensures the highlight appears when the user switches to the tab
+        const highlightsTab = document.getElementById('trulens-my-highlights');
+        const isHighlightsTabActive = highlightsTab && highlightsTab.classList.contains('active');
+        
+        if (highlightsTab) {
+          // Refresh the highlights display
+          await panel.updateHighlights();
+          
+          // Auto-expand the source header for the newly saved highlight if tab is active
+          if (isHighlightsTabActive) {
+            // Extract source name from the saved highlight
+            let sourceName = 'Unknown';
+            try {
+              const domain = new URL(excerpt.url).hostname.replace('www.', '');
+              const parts = domain.split('.');
+              if (parts.length > 0) {
+                const baseName = parts[0];
+                if (baseName.length <= 4) {
+                  sourceName = baseName.toUpperCase();
+                } else {
+                  sourceName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+                }
+              }
+            } catch (e) {
+              // Use default
+            }
+            
+            // Find and expand the source header
+            const sourceId = `source-${sourceName.toLowerCase().replace(/\s+/g, '-')}`;
+            const sourceHeader = highlightsTab.querySelector(`[data-source-header="${sourceId}"]`);
+            const sourceContent = highlightsTab.querySelector(`[data-source-content="${sourceId}"]`);
+            
+            if (sourceHeader && sourceContent) {
+              // Expand the source header
+              sourceHeader.classList.remove('collapsed');
+              sourceHeader.classList.add('expanded');
+              sourceContent.style.display = 'flex';
+              
+              // Rotate chevron
+              const chevron = sourceHeader.querySelector('.highlight-chevron svg');
+              if (chevron) {
+                chevron.style.transform = 'rotate(180deg)';
+              }
+            }
+          }
+        }
+
+        this.hideToolbar();
+      } else if (action === 'explore') {
+        // Explore this topic - open related articles
+        const topic = topTopic(text);
+        const links = await buildPerspectiveLinks(topic);
+        for (const link of links.slice(0, 5)) {
+          window.open(link.url, '_blank');
+        }
         this.hideToolbar();
       }
     }
@@ -1319,19 +1412,29 @@
     },
 
     async updateHighlights() {
-      const highlightsEl = document.getElementById('trulens-highlights');
-      if (!highlightsEl) return;
+      const highlightsEl = document.getElementById('trulens-my-highlights');
+      if (!highlightsEl) {
+        console.log('[Trulens] updateHighlights: Highlights element not found');
+        return;
+      }
 
+      console.log('[Trulens] updateHighlights: Starting...');
       let response;
       try {
         response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+        console.log('[Trulens] updateHighlights: Response received:', response);
       } catch (e) {
-        response = { data: null };
+        console.error('[Trulens] updateHighlights: Error getting highlights:', e);
+        response = { success: false, data: null };
       }
-      const highlights = response.data || [];
+      // Handle response format from background script
+      // Background script returns { success: true, data: [...] }
+      const highlights = (response && response.success && response.data) ? response.data : [];
+      console.log('[Trulens] updateHighlights: Highlights array:', highlights.length, highlights);
 
       // Get reliability for each highlight (placeholder logic - replace with actual reliability scoring)
       const getReliability = (highlight, index) => {
+        console.log('Highlights retrieved:', highlights.length, highlights);
         const reliabilities = ['reliable', 'less-reliable', 'not-reliable'];
         return reliabilities[index % 3];
       };
@@ -1350,54 +1453,109 @@
         return;
       }
 
+      // Group highlights by source (domain)
+      const highlightsBySource = {};
+      highlights.forEach((highlight, index) => {
+        const url = highlight.url || '';
+        let sourceName = 'Unknown';
+        let domain = '';
+        
+        try {
+          if (url) {
+            domain = new URL(url).hostname.replace('www.', '');
+            // Extract source name (e.g., "nj.com" -> "NJ.com", "wptv.com" -> "WPTV")
+            const parts = domain.split('.');
+            if (parts.length > 0) {
+              const baseName = parts[0];
+              // Capitalize appropriately
+              if (baseName.length <= 4) {
+                sourceName = baseName.toUpperCase();
+              } else {
+                sourceName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+              }
+            } else {
+              sourceName = domain;
+            }
+          }
+        } catch (e) {
+          sourceName = 'Unknown';
+        }
+        
+        if (!highlightsBySource[sourceName]) {
+          highlightsBySource[sourceName] = {
+            domain: domain,
+            highlights: []
+          };
+        }
+        
+        // Add highlight to the beginning of the array for this source (most recent first)
+        highlightsBySource[sourceName].highlights.unshift({
+          ...highlight,
+          index,
+          reliability: getReliability(highlight, index)
+        });
+      });
+
+      // Render highlights grouped by source with collapsible headers
       highlightsEl.innerHTML = `
         <div class="highlights-container">
-          <div class="highlights-header-section">
-            <div class="highlights-header-row">
-              <p class="highlights-breadcrumb">&lt; Sources / Documented history with</p>
-              <button class="filter-icon-button" aria-label="Filter">
-                <img src="${chrome.runtime.getURL('assets/mdi_filter.svg')}" alt="Filter" class="filter-icon">
-              </button>
-            </div>
-          </div>
           <div class="highlights-cards-list">
-            ${highlights.map((highlight, index) => {
-              const reliability = getReliability(highlight, index);
-              const reliabilityLabels = {
-                'reliable': 'Reliable',
-                'less-reliable': 'Less Reliable',
-                'not-reliable': 'Not Reliable'
-              };
-              const reliabilityIcon = getReliabilityIcon(reliability);
-              
-              // Extract domain for publisher avatar color
-              const url = highlight.url || '';
-              const domain = url ? new URL(url).hostname.replace('www.', '') : '';
-              const avatarColor = '#e02424'; // Default, could be customized per domain
-              
-              // Use highlight text as quote, or excerpt if available
-              const quote = highlight.text || highlight.excerpt || 'No excerpt available.';
-              const title = highlight.title || domain || 'Untitled';
+            ${Object.entries(highlightsBySource).map(([sourceName, sourceData]) => {
+              const sourceId = `source-${sourceName.toLowerCase().replace(/\s+/g, '-')}`;
+              const sourceHighlights = sourceData.highlights;
               
               return `
-                <div class="source-card" data-reliability="${reliability}">
-                  <p class="source-quote">${escapeHtml(quote)}</p>
-                  <div class="source-meta">
-                    <div class="source-title-row">
-                      <a href="${highlight.url || '#'}" target="_blank" rel="noopener" class="source-title">${escapeHtml(title)}</a>
+                <div class="highlight-source-group" data-source-id="${sourceId}">
+                  <!-- Source Header (Collapsible) -->
+                  <div class="highlight-source-header collapsed" data-source-header="${sourceId}">
+                    <div class="highlight-radio">
+                      <div class="highlight-radio-circle"></div>
                     </div>
-                    <div class="source-footer">
-                      <div class="source-publisher">
-                        <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
-                        <span class="publisher-name">${escapeHtml(domain || 'Unknown')}</span>
-                      </div>
-                      <div class="reliability-badge ${reliability}">
-                        <div>
-                          ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
-                          <span>${reliabilityLabels[reliability]}</span>
+                    <div class="highlight-source-header-content">
+                      <span class="highlight-source-name">${escapeHtml(sourceName)}</span>
+                      <span class="highlight-source-title">${escapeHtml(sourceHighlights[0].title || 'Untitled')}</span>
+                    </div>
+                    <button class="highlight-chevron" aria-label="Toggle source highlights">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <!-- Source Highlights (Hidden when collapsed) -->
+                  <div class="highlight-source-content" data-source-content="${sourceId}">
+                    ${sourceHighlights.map((highlight, highlightIndex) => {
+                      const reliability = highlight.reliability;
+                      const reliabilityLabels = {
+                        'reliable': 'Reliable',
+                        'less-reliable': 'Less Reliable',
+                        'not-reliable': 'Not Reliable'
+                      };
+                      const reliabilityIcon = getReliabilityIcon(reliability);
+                      const quote = highlight.text || highlight.excerpt || '';
+                      
+                      // Generate placeholder rationale (replace with actual analysis)
+                      const rationalePoints = [
+                        'Rationale explanation point 1',
+                        'Rationale explanation point 2'
+                      ];
+                      
+                      return `
+                        <div class="highlight-card-expanded" data-reliability="${reliability}">
+                          <div class="highlight-reliability-badge ${reliability}">
+                            ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
+                            <span>${reliabilityLabels[reliability]}</span>
+                          </div>
+                          <div class="highlight-quote">${escapeHtml(quote)}</div>
+                          <div class="highlight-rationale">
+                            <ul class="highlight-rationale-list">
+                              ${rationalePoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                            </ul>
+                          </div>
+                          <a href="${highlight.url || '#'}" target="_blank" rel="noopener" class="highlight-explore-link">Explore this topic</a>
                         </div>
-                      </div>
-                    </div>
+                      `;
+                    }).join('')}
                   </div>
                 </div>
               `;
@@ -1406,13 +1564,50 @@
         </div>
       `;
 
-      // Setup interactivity for filter button
-      const filterButton = highlightsEl.querySelector('.filter-icon-button');
-      if (filterButton) {
-        filterButton.addEventListener('click', () => {
-          console.log('Filter button clicked in highlights');
+      // Setup expand/collapse functionality for source headers
+      highlightsEl.querySelectorAll('.highlight-source-header').forEach(header => {
+        header.addEventListener('click', (e) => {
+          // Don't toggle if clicking the chevron button directly
+          if (e.target.closest('.highlight-chevron')) {
+            e.stopPropagation();
+          }
+          
+          const sourceId = header.dataset.sourceHeader;
+          const content = highlightsEl.querySelector(`[data-source-content="${sourceId}"]`);
+          const chevron = header.querySelector('.highlight-chevron svg');
+          
+          if (content) {
+            const isCollapsed = header.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+              header.classList.remove('collapsed');
+              header.classList.add('expanded');
+              content.style.display = 'flex';
+              if (chevron) {
+                chevron.style.transform = 'rotate(180deg)';
+              }
+            } else {
+              header.classList.remove('expanded');
+              header.classList.add('collapsed');
+              content.style.display = 'none';
+              if (chevron) {
+                chevron.style.transform = 'rotate(0deg)';
+              }
+            }
+          }
         });
-      }
+        
+        // Initialize chevron state
+        const chevron = header.querySelector('.highlight-chevron svg');
+        if (chevron && header.classList.contains('collapsed')) {
+          chevron.style.transform = 'rotate(0deg)';
+        }
+      });
+      
+      // Initialize content visibility
+      highlightsEl.querySelectorAll('.highlight-source-content').forEach(content => {
+        content.style.display = 'none';
+      });
     }
   };
 
@@ -1648,6 +1843,8 @@
         panel.updateSummary();
       } else if (tabName === 'how-to-use') {
         panel.updateHowToUse();
+      } else if (tabName === 'my-highlights') {
+        panel.updateHighlights();
       }
     }
   });
