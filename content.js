@@ -51,14 +51,14 @@
         <div class="sources-overview-container">
           <div class="filter-section-top">
             <button class="filter-button-top">Trulens</button>
-          </div>
+        </div>
           <div class="tab-navigation">
             <button class="tab-button active" data-tab="references">References</button>
             <button class="tab-button" data-tab="summary">Summary</button>
             <button class="tab-button" data-tab="how-to-use">How to Use</button>
             <button class="tab-button" data-tab="my-highlights">My Highlights</button>
-          </div>
-          <div class="trulens-panel-content">
+        </div>
+        <div class="trulens-panel-content">
             <div class="trulens-panel-section active" id="trulens-references"></div>
             <div class="trulens-panel-section" id="trulens-summary"></div>
             <div class="trulens-panel-section" id="trulens-how-to-use"></div>
@@ -837,6 +837,16 @@
     }
 
     async handleSelection() {
+      // Don't handle selection if we're currently handling a button action
+      if (this.isHandlingAction) {
+        return;
+      }
+      
+      // Don't handle selection if clicking on the toolbar
+      if (this.toolbar && document.activeElement && this.toolbar.contains(document.activeElement)) {
+        return;
+      }
+      
       const selection = window.getSelection();
       const text = selection.toString().trim();
 
@@ -867,8 +877,16 @@
         this.toolbar.className = 'trulens-toolbar';
         this.toolbar.setAttribute('role', 'toolbar');
         this.toolbar.setAttribute('aria-label', 'Selection actions');
-        document.getElementById('trulens-toolbar-container').appendChild(this.toolbar);
+        const container = document.getElementById('trulens-toolbar-container');
+        if (!container) {
+          console.error('[Trulens] Toolbar container not found!');
+          return;
+        }
+        container.appendChild(this.toolbar);
       }
+      
+      // Store the current text for use in event handlers
+      this.currentText = text;
 
       // Determine reliability (placeholder logic - replace with actual reliability scoring)
       const getReliability = (text) => {
@@ -924,19 +942,77 @@
       this.toolbar.style.top = `${Math.max(8, top)}px`;
       this.toolbar.style.display = 'block';
 
-      // Action handlers
-      this.toolbar.querySelectorAll('[data-action]').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          await this.handleAction(btn.dataset.action, text);
-        });
-        btn.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+      // Store the current text for use in event handlers
+      this.currentText = text;
+      console.log('[Trulens] Toolbar shown with text length:', text ? text.length : 0);
+
+      // Use event delegation on the toolbar to handle clicks
+      // This avoids issues with event listeners being lost when innerHTML is updated
+      // Remove any existing listeners first
+      const newToolbar = this.toolbar.cloneNode(true);
+      this.toolbar.parentNode.replaceChild(newToolbar, this.toolbar);
+      this.toolbar = newToolbar;
+      
+      // Add click handler with capture phase to catch it early
+      this.toolbar.addEventListener('click', async (e) => {
+        console.log('[Trulens] Toolbar clicked, target:', e.target, 'closest:', e.target.closest('[data-action]'));
+        
+        // Stop the event from propagating to document level
+        e.stopPropagation();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        
+        // Prevent selection from being cleared
+        if (window.getSelection) {
+          const sel = window.getSelection();
+          if (sel.rangeCount > 0) {
+            // Keep the selection temporarily
+            this.savedSelection = sel.getRangeAt(0).cloneRange();
+          }
+        }
+        
+        const btn = e.target.closest('[data-action]');
+        if (!btn) {
+          console.log('[Trulens] No button with data-action found');
+          return;
+        }
+        
+        const action = btn.dataset.action;
+        const actionText = this.currentText || text;
+        
+        console.log('[Trulens] Button clicked via delegation:', action, 'Text length:', actionText ? actionText.length : 0);
+        
+        // Visual feedback
+        btn.style.opacity = '0.6';
+        setTimeout(() => {
+          if (btn.parentNode) {
+            btn.style.opacity = '1';
+          }
+        }, 200);
+        
+        if (!actionText || !actionText.trim()) {
+          console.error('[Trulens] No text available for action');
+          return;
+        }
+        
+        // Prevent selection change from interfering by using a flag
+        this.isHandlingAction = true;
+        setTimeout(async () => {
+          await this.handleAction(action, actionText);
+          this.isHandlingAction = false;
+        }, 10);
+      }, true); // Use capture phase to catch the event early
+      
+      // Keyboard support
+      this.toolbar.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          const btn = e.target.closest('[data-action]');
+          if (btn) {
             e.preventDefault();
             btn.click();
           }
-        });
-      });
+        }
+      };
 
       // Esc to hide
       const escHandler = (e) => {
@@ -968,7 +1044,13 @@
     }
 
     async handleAction(action, text) {
+      console.log('[Trulens] handleAction called:', action, 'Text length:', text ? text.length : 0);
       if (action === 'save') {
+        if (!text || !text.trim()) {
+          console.error('[Trulens] Cannot save: no text provided');
+          return;
+        }
+        
         // Save the exact selected text (no truncation)
         const excerpt = {
           text: text.trim(),
@@ -1014,41 +1096,49 @@
           // Refresh the highlights display
           await panel.updateHighlights();
           
-          // Auto-expand the source header for the newly saved highlight if tab is active
-          if (isHighlightsTabActive) {
-            // Extract source name from the saved highlight
-            let sourceName = 'Unknown';
-            try {
-              const domain = new URL(excerpt.url).hostname.replace('www.', '');
-              const parts = domain.split('.');
-              if (parts.length > 0) {
-                const baseName = parts[0];
-                if (baseName.length <= 4) {
-                  sourceName = baseName.toUpperCase();
-                } else {
-                  sourceName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-                }
+          // Auto-expand the source header for the newly saved highlight
+          // Extract source name from the saved highlight
+          let sourceName = 'Unknown';
+          try {
+            const domain = new URL(excerpt.url).hostname.replace('www.', '');
+            const parts = domain.split('.');
+            if (parts.length > 0) {
+              const baseName = parts[0];
+              if (baseName.length <= 4) {
+                sourceName = baseName.toUpperCase();
+              } else {
+                sourceName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
               }
-            } catch (e) {
-              // Use default
+            }
+          } catch (e) {
+            // Use default
+          }
+          
+          // Find and expand the source header
+          const sourceId = `source-${sourceName.toLowerCase().replace(/\s+/g, '-')}`;
+          const sourceHeader = highlightsTab.querySelector(`[data-source-header="${sourceId}"]`);
+          const sourceContent = highlightsTab.querySelector(`[data-source-content="${sourceId}"]`);
+          
+          if (sourceHeader && sourceContent) {
+            // Expand the source header
+            sourceHeader.classList.remove('collapsed');
+            sourceHeader.classList.add('expanded');
+            sourceContent.style.display = 'flex';
+            
+            // Rotate chevron
+            const chevron = sourceHeader.querySelector('.highlight-chevron svg');
+            if (chevron) {
+              chevron.style.transform = 'rotate(180deg)';
             }
             
-            // Find and expand the source header
-            const sourceId = `source-${sourceName.toLowerCase().replace(/\s+/g, '-')}`;
-            const sourceHeader = highlightsTab.querySelector(`[data-source-header="${sourceId}"]`);
-            const sourceContent = highlightsTab.querySelector(`[data-source-content="${sourceId}"]`);
-            
-            if (sourceHeader && sourceContent) {
-              // Expand the source header
-              sourceHeader.classList.remove('collapsed');
-              sourceHeader.classList.add('expanded');
-              sourceContent.style.display = 'flex';
-              
-              // Rotate chevron
-              const chevron = sourceHeader.querySelector('.highlight-chevron svg');
-              if (chevron) {
-                chevron.style.transform = 'rotate(180deg)';
-              }
+            // Scroll the new highlight into view if tab is active
+            if (isHighlightsTabActive) {
+              setTimeout(() => {
+                const firstHighlight = sourceContent.querySelector('.highlight-card-expanded');
+                if (firstHighlight) {
+                  firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+              }, 100);
             }
           }
         }
@@ -1322,7 +1412,7 @@
                       <div class="source-meta">
                         <div class="source-title-row">
                           <a href="${article.url}" target="_blank" rel="noopener" class="source-title">${escapeHtml(article.title)}</a>
-                        </div>
+            </div>
                         <div class="source-footer">
                           <div class="source-publisher">
                             <div class="publisher-avatar" style="background-color: ${avatarColor}"></div>
@@ -1417,66 +1507,21 @@
         return;
       }
 
-      // Hardcoded highlights data matching the design
-      const highlightsBySource = {
-        'NJ.com': {
-          domain: 'nj.com',
-          highlights: [{
-            title: 'N.J. rushes millions to food banks as 813K residents face empty SNAP accounts',
-            text: 'That means any of the 813,000 New Jerseyans who rely on the program will find their debit accou...',
-            url: window.location.href,
-            reliability: 'reliable',
-            rationale: [
-              'Based on the latest census data, the number of New Jerseyans impacted by SNAP is consistent within ±5%.',
-              'The debit accounts refer to EBT cards used to administer SNAP benefits.'
-            ]
-          },
+      // Get saved highlights from storage
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({ type: 'TRULENS_GET_HIGHLIGHTS' });
+      } catch (e) {
+        console.error('[Trulens] Error getting highlights:', e);
+        response = { success: false, data: null };
+      }
 
-          {
-            title: 'Democrats are fighting to get a deal that would renew the tax credits that help millions of people i...',
-            text: 'Democrats are fighting to get a deal that would renew the tax credits that help millions of people i...',
-            url: window.location.href,
-            reliability: 'less-reliable',
-            rationale: [
-              'Millions of ACA enrollees receive premium reducing tax credits, and these credits were indeed set to lapse without congressional action.',
-              'Federal statements confirm Democrats tied extension of ACA credits to reopening negotiations and that some Republicans refused to negotiate until the government reopened.',
-              'Active political language like "fighting" and "won\'t negotiate" which emphasize conflict.'
-            ]
-          },
+      const savedHighlights = (response && response.success && response.data) ? response.data : [];
 
-          {
-            title: 'In moments like this, we all have a responsibility to step up and do our part to ensure no one goes hun...',
-            text: 'In moments like this, we all have a responsibility to step up and do our part to ensure no one goes hun...',
-            url: window.location.href,
-            reliability: 'reliable',
-            rationale: [
-              'The statement itself is opinion, but Coughlin\'s sponsorship of food insecurity legislation is verifiable based on multiple New Jersey legislative records.',
-              'The quote expresses a value judgment ("responsibility to step up"), and should be read as advocacy framing. His legislative history and involvement in the issue area is accurate.'
-            ]
-          }]
-        },
-    
-        'WPTV': {
-          domain: 'wptv.com',
-          highlights: [{
-            title: 'SNAP benefits to continue amid government shutdown: What you need to know',
-            text: '',
-            url: window.location.href,
-            reliability: 'reliable',
-            rationale: []
-          }]
-        },
-        'Rhino Times': {
-          domain: 'rhinotimes.com',
-          highlights: [{
-            title: 'Federal Shutdown Starts To Hit Home In Guilford County',
-            text: '',
-            url: window.location.href,
-            reliability: 'reliable',
-            rationale: []
-          }]
-        }
-      };
+      if (savedHighlights.length === 0) {
+        highlightsEl.innerHTML = '<p style="color: var(--secondary-content, #797979); padding: 16px;">No highlights saved yet.</p>';
+        return;
+      }
 
       const getReliabilityIcon = (reliability) => {
         const icons = {
@@ -1486,6 +1531,64 @@
         };
         return icons[reliability] || '';
       };
+
+      // Generate reliability (placeholder - replace with actual analysis)
+      const getReliability = (highlight, index) => {
+        // For now, use a simple rotation or default to 'reliable'
+        // In the future, this should analyze the text for reliability
+        const reliabilities = ['reliable', 'less-reliable', 'reliable'];
+        return reliabilities[index % 3] || 'reliable';
+      };
+
+      // Generate rationale (placeholder - replace with actual analysis)
+      const getRationale = (highlight) => {
+        // For now, return empty array or placeholder rationale
+        // In the future, this should analyze the text and provide rationale
+        return [];
+      };
+
+      // Group highlights by source (domain)
+      const highlightsBySource = {};
+      savedHighlights.forEach((highlight, index) => {
+        const url = highlight.url || '';
+        let sourceName = 'Unknown';
+        let domain = '';
+        
+        try {
+          if (url) {
+            domain = new URL(url).hostname.replace('www.', '');
+            // Extract source name (e.g., "nj.com" -> "NJ.com", "wptv.com" -> "WPTV")
+            const parts = domain.split('.');
+            if (parts.length > 0) {
+              const baseName = parts[0];
+              // Capitalize appropriately
+              if (baseName.length <= 4) {
+                sourceName = baseName.toUpperCase();
+              } else {
+                sourceName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+              }
+            } else {
+              sourceName = domain;
+            }
+          }
+        } catch (e) {
+          sourceName = 'Unknown';
+        }
+        
+        if (!highlightsBySource[sourceName]) {
+          highlightsBySource[sourceName] = {
+            domain: domain,
+            highlights: []
+          };
+        }
+        
+        // Add highlight to the beginning of the array for this source (most recent first)
+        highlightsBySource[sourceName].highlights.unshift({
+          ...highlight,
+          reliability: getReliability(highlight, index),
+          rationale: getRationale(highlight)
+        });
+      });
 
       // Render highlights grouped by source with collapsible headers
       highlightsEl.innerHTML = `
@@ -1501,11 +1604,11 @@
                   <div class="highlight-source-header collapsed" data-source-header="${sourceId}">
                     <div class="highlight-radio">
                       <div class="highlight-radio-circle"></div>
-                    </div>
+          </div>
                     <div class="highlight-source-header-content">
                       <span class="highlight-source-name">${escapeHtml(sourceName)}</span>
                       <span class="highlight-source-title">${escapeHtml(sourceHighlights[0].title || 'Untitled')}</span>
-                    </div>
+        </div>
                     <button class="highlight-chevron" aria-label="Toggle source highlights">
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1516,7 +1619,7 @@
                   <!-- Source Highlights (Hidden when collapsed) -->
                   <div class="highlight-source-content" data-source-content="${sourceId}">
                     ${sourceHighlights.map((highlight, highlightIndex) => {
-                      const reliability = highlight.reliability;
+                      const reliability = highlight.reliability || 'reliable';
                       const reliabilityLabels = {
                         'reliable': 'Reliable',
                         'less-reliable': 'Less Reliable',
@@ -1525,11 +1628,6 @@
                       const reliabilityIcon = getReliabilityIcon(reliability);
                       const quote = highlight.text || '';
                       const rationalePoints = highlight.rationale || [];
-                      
-                      // Only show the expanded card if there's content (quote or rationale)
-                      if (!quote && rationalePoints.length === 0) {
-                        return '';
-                      }
                       
                       return `
                         <div class="highlight-card-expanded" data-reliability="${reliability}">
