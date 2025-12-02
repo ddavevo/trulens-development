@@ -1443,8 +1443,41 @@
       const summaryEl = document.getElementById('trulens-summary');
       if (!summaryEl) return;
       
-      // Summary tab content - to be implemented
-      summaryEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--secondary-content, #797979);">Summary content coming soon.</div>';
+      // Summary tab content based on Figma design
+      summaryEl.innerHTML = `
+        <div class="summary-body-section">
+          <!-- Overview Container -->
+          <div class="summary-container">
+            <div class="summary-subtitle">Overview</div>
+            <div class="summary-box">
+              <div class="summary-text">
+                <p>More than 800,000 residents in New Jersey are facing the loss of their SNAP benefits as of November 1, due to a lapse in federal funding tied to the ongoing government shutdown.</p>
+                <p>This cutoff threatens roughly 42 million Americans nationwide who rely on SNAP, with state food-banks already reporting serious strain and accelerating emergency funding in response.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stance/Lean Container -->
+          <div class="summary-container">
+            <div class="summary-subtitle">Stance/Lean</div>
+            <div class="summary-box">
+              <div class="summary-text">
+                <p>This article emphasizes the federal administration's "weaponizing" of food assistance and frames the situation as a political move, suggesting the main claims may be shaped by the alarm at the policy implications.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Donors Container -->
+          <div class="summary-container">
+            <div class="summary-subtitle">Donors</div>
+            <div class="summary-box">
+              <div class="summary-text">
+                <p>The article is based on official statements from the state's Department of Human Services and other government filings, and appears to draw on credible data and sources. No traces of lobbying, but the platform gets local donations (<$50 on average) through a local foundation setup.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
     },
 
     async updateHowToUse() {
