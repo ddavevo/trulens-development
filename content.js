@@ -55,14 +55,14 @@
           <div class="tab-navigation">
             <button class="tab-button active" data-tab="references">References</button>
             <button class="tab-button" data-tab="summary">Summary</button>
-            <button class="tab-button" data-tab="how-to-use">How to Use</button>
             <button class="tab-button" data-tab="my-highlights">My Highlights</button>
+            <button class="tab-button" data-tab="how-to-use">How to Use</button>
         </div>
         <div class="trulens-panel-content">
             <div class="trulens-panel-section active" id="trulens-references"></div>
             <div class="trulens-panel-section" id="trulens-summary"></div>
-            <div class="trulens-panel-section" id="trulens-how-to-use"></div>
             <div class="trulens-panel-section" id="trulens-my-highlights"></div>
+            <div class="trulens-panel-section" id="trulens-how-to-use"></div>
           </div>
         </div>
       `;
@@ -1524,7 +1524,7 @@
             <!-- Section 4: Get a quick summary -->
             <div class="how-to-use-section">
               <h3 class="how-to-use-heading">Get a quick summary</h3>
-              <p class="how-to-use-description">Open the Summary tab for a concise, 4-minute brief of the article—including any funding sources or donors (when available) that may influence the narrative.</p>
+              <p class="how-to-use-description">Open the Summary tab for a concise, 4-sentence brief of the article—including any funding sources or donors (when available) that may influence the narrative.</p>
               <div class="how-to-use-image-container">
                 <img src="${chrome.runtime.getURL('images/get-summary-image.png')}" alt="Get a quick summary example" class="how-to-use-image">
               </div>
