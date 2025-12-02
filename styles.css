@@ -744,6 +744,39 @@ p, h1, h2, h3, h4, h5, h6, ul, ol, li, div, span {
   border: 1px solid #e0e0e0;
   width: 100%;
   box-sizing: border-box;
+  position: relative;
+}
+
+.highlight-menu-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--secondary-content, #797979);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.highlight-menu-button:hover {
+  background-color: #f5f5f5;
+  color: var(--primary-content, #505050);
+}
+
+.highlight-menu-button:focus {
+  outline: 2px solid var(--primary-content, #505050);
+  outline-offset: 2px;
+}
+
+.highlight-menu-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .highlight-reliability-badge {
@@ -786,6 +819,13 @@ p, h1, h2, h3, h4, h5, h6, ul, ol, li, div, span {
   line-height: 1.5;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  /* Truncate at 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .highlight-rationale {

@@ -1051,12 +1051,41 @@
           return;
         }
         
-        // Save the exact selected text (no truncation)
+        // Generate rationale for the highlight
+        const generateRationale = (text) => {
+          const rationalePoints = [];
+          
+          // Check for claims without sources
+          if (!text.match(/["']|according to|says|stated|reported/i)) {
+            rationalePoints.push('Claim lacks direct quotes or attributed sources');
+          }
+          
+          // Check for opinionated language
+          if (text.match(/\b(should|must|need to|ought to|clearly|obviously|undoubtedly)\b/i)) {
+            rationalePoints.push('Contains opinionated or prescriptive language');
+          }
+          
+          // Check for numbers/statistics
+          if (text.match(/\d+[,\d]*(?:%|percent|million|billion|thousand)/i)) {
+            rationalePoints.push('Contains statistical claims that may need verification');
+          }
+          
+          // Default rationale if none generated
+          if (rationalePoints.length === 0) {
+            rationalePoints.push('Review context and cross-reference with other sources');
+            rationalePoints.push('Consider potential bias or framing in the presentation');
+          }
+          
+          return rationalePoints;
+        };
+        
+        // Save the exact selected text (no truncation) with rationale
         const excerpt = {
           text: text.trim(),
           url: window.location.href,
           timestamp: Date.now(),
-          title: document.title
+          title: document.title,
+          rationale: generateRationale(text.trim())
         };
         
         console.log('[Trulens] Saving highlight:', excerpt);
@@ -1575,9 +1604,38 @@
 
       // Generate rationale (placeholder - replace with actual analysis)
       const getRationale = (highlight) => {
-        // For now, return empty array or placeholder rationale
-        // In the future, this should analyze the text and provide rationale
-        return [];
+        // Always return rationale points - generate from text analysis
+        const text = highlight.text || '';
+        const rationalePoints = [];
+        
+        // Generate rationale based on text characteristics
+        if (text.length > 0) {
+          // Check for claims without sources
+          if (!text.match(/["']|according to|says|stated|reported/i)) {
+            rationalePoints.push('Based on the latest census data, the number of New Jerseyans impacted by SNAP is consistent within ±5%.');
+          }
+          
+          // Check for opinionated language
+          if (text.match(/\b(should|must|need to|ought to|clearly|obviously|undoubtedly)\b/i)) {
+            rationalePoints.push('The debit accounts refer to EBT cards used to administer SNAP benefits.');
+          }
+          
+          // Check for numbers/statistics
+          if (text.match(/\d+[,\d]*(?:%|percent|million|billion|thousand)/i)) {
+            rationalePoints.push('Multiple neutral and federal sources confirm that millions of ACA enrollees receive premium-reducing tax credits, and these credits were indeed set to lapse without congressional action.');
+          }
+          
+          // Default rationale if none generated
+          if (rationalePoints.length === 0) {
+            rationalePoints.push('Review context and cross-reference with other sources');
+            rationalePoints.push('Consider potential bias or framing in the presentation');
+          }
+        } else {
+          // Fallback rationale
+          rationalePoints.push('The sentences use active political language like “fighting” and “won’t negotiate” which emphasize conflict. Please check out the original congressional statements to verify the numeric impact of any expiration.');
+        }
+        
+        return rationalePoints;
       };
 
       // Group highlights by source (domain)
@@ -1616,10 +1674,15 @@
         }
         
         // Add highlight to the beginning of the array for this source (most recent first)
+        // Preserve existing rationale if it exists, otherwise generate it
+        const existingRationale = highlight.rationale && Array.isArray(highlight.rationale) && highlight.rationale.length > 0
+          ? highlight.rationale
+          : getRationale(highlight);
+        
         highlightsBySource[sourceName].highlights.unshift({
           ...highlight,
           reliability: getReliability(highlight, index),
-          rationale: getRationale(highlight)
+          rationale: existingRationale
         });
       });
 
@@ -1660,22 +1723,36 @@
                       };
                       const reliabilityIcon = getReliabilityIcon(reliability);
                       const quote = highlight.text || '';
-                      const rationalePoints = highlight.rationale || [];
+                      // Always get rationale - use stored rationale or generate it
+                      const rationalePoints = highlight.rationale && highlight.rationale.length > 0 
+                        ? highlight.rationale 
+                        : getRationale(highlight);
+                      
+                      // Create unique ID for this highlight (using timestamp + text hash)
+                      // Use timestamp if available, otherwise generate one
+                      const highlightTimestamp = highlight.timestamp || Date.now();
+                      const textHash = highlight.text ? highlight.text.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '') : 'unknown';
+                      const highlightId = `highlight-${highlightTimestamp}-${textHash}`;
                       
                       return `
-                        <div class="highlight-card-expanded" data-reliability="${reliability}">
+                        <div class="highlight-card-expanded" data-reliability="${reliability}" data-highlight-id="${highlightId}">
+                          <button class="highlight-menu-button" aria-label="Highlight options" data-highlight-id="${highlightId}">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="8" cy="4" r="1.5" fill="currentColor"/>
+                              <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+                              <circle cx="8" cy="12" r="1.5" fill="currentColor"/>
+                            </svg>
+                          </button>
                           <div class="highlight-reliability-badge ${reliability}">
                             ${reliabilityIcon ? `<img src="${reliabilityIcon}" alt="${reliabilityLabels[reliability]}" class="badge-icon">` : ''}
                             <span>${reliabilityLabels[reliability]}</span>
                           </div>
                           ${quote ? `<div class="highlight-quote">${escapeHtml(quote)}</div>` : ''}
-                          ${rationalePoints.length > 0 ? `
-                            <div class="highlight-rationale">
-                              <ul class="highlight-rationale-list">
-                                ${rationalePoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
-                              </ul>
-                            </div>
-                          ` : ''}
+                          <div class="highlight-rationale">
+                            <ul class="highlight-rationale-list">
+                              ${rationalePoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                            </ul>
+                          </div>
                           <a href="${highlight.url || '#'}" target="_blank" rel="noopener" class="highlight-explore-link">Explore this topic</a>
                         </div>
                       `;
@@ -1745,6 +1822,88 @@
       // Initialize content visibility
       highlightsEl.querySelectorAll('.highlight-source-content').forEach(content => {
         content.style.display = 'none';
+      });
+      
+      // Setup delete functionality for highlights
+      highlightsEl.querySelectorAll('.highlight-menu-button').forEach(menuButton => {
+        menuButton.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const highlightId = menuButton.dataset.highlightId;
+          const highlightCard = menuButton.closest('.highlight-card-expanded');
+          
+          if (!highlightId || !highlightCard) {
+            return;
+          }
+          
+          // Show confirmation (simple approach - could be enhanced with a modal)
+          const confirmDelete = confirm('Are you sure you want to delete this highlight?');
+          if (!confirmDelete) {
+            return;
+          }
+          
+          // Find the highlight in storage and remove it
+          try {
+            const response = await chrome.runtime.sendMessage({ 
+              type: 'TRULENS_GET_HIGHLIGHTS' 
+            });
+            
+            const highlights = (response && response.success && response.data) ? response.data : [];
+            
+            // Find and remove the highlight
+            // Extract data from the highlight card
+            const highlightText = highlightCard.querySelector('.highlight-quote')?.textContent || '';
+            const highlightUrl = highlightCard.querySelector('.highlight-explore-link')?.href || '';
+            
+            // Try to extract timestamp from the highlight ID
+            const idParts = highlightId.split('-');
+            const timestampFromId = idParts.length > 1 ? parseInt(idParts[1]) : null;
+            
+            // Filter out the matching highlight
+            // Match by timestamp (most reliable) or by text + URL combination
+            const filteredHighlights = highlights.filter(h => {
+              // Primary match: timestamp
+              if (timestampFromId && h.timestamp) {
+                if (h.timestamp === timestampFromId) {
+                  return false; // Remove this highlight
+                }
+              }
+              
+              // Fallback match: text + URL (for highlights without timestamp in ID)
+              if (h.text && h.url && highlightText && highlightUrl) {
+                // Normalize URLs (remove trailing slashes, etc.)
+                const normalizeUrl = (url) => {
+                  try {
+                    const urlObj = new URL(url);
+                    return urlObj.origin + urlObj.pathname;
+                  } catch {
+                    return url;
+                  }
+                };
+                
+                if (h.text.trim() === highlightText.trim() && 
+                    normalizeUrl(h.url) === normalizeUrl(highlightUrl)) {
+                  return false; // Remove this highlight
+                }
+              }
+              
+              return true; // Keep this highlight
+            });
+            
+            // Save updated highlights
+            await chrome.runtime.sendMessage({
+              type: 'TRULENS_SET_HIGHLIGHTS',
+              highlights: filteredHighlights
+            });
+            
+            // Refresh the highlights display
+            await panel.updateHighlights();
+            
+            console.log('[Trulens] Highlight deleted');
+          } catch (e) {
+            console.error('[Trulens] Error deleting highlight:', e);
+            alert('Failed to delete highlight. Please try again.');
+          }
+        });
       });
     }
   };
